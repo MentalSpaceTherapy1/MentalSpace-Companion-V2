@@ -30,7 +30,7 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package*.json ./
 
 # Install production dependencies only
-RUN npm install --only=production && \
+RUN npm install --omit=dev && \
     npm cache clean --force
 
 # Set ownership
