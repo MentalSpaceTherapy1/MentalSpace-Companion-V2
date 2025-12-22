@@ -10,7 +10,7 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
-import * as admin from 'firebase-admin';
+import admin from 'firebase-admin';
 
 import { tools } from './tools/index.js';
 import { handleCheckin } from './handlers/checkin.js';
