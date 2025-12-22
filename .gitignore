@@ -38,8 +38,10 @@ nul
 
 # Expo
 .expo/
-dist/
+# dist/ - removed, using specific paths instead
 web-build/
+# Keep apps/mobile/dist for Firebase deployment
+!apps/mobile/dist/
 *.jks
 *.p8
 *.p12
