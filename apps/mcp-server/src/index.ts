@@ -22,8 +22,17 @@ import { handleStartSOSProtocol, handleGuidedBreathing, handleGroundingExercise 
 import { handleSetWeeklyFocus, handleGetWeeklyFocus, handleCompleteDailyGoal } from './handlers/weeklyFocus.js';
 
 // Initialize Firebase Admin
+// Support both JSON credentials (Fly.io) and application default (local dev)
+function getFirebaseCredential() {
+  if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
+    const serviceAccount = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON);
+    return admin.credential.cert(serviceAccount);
+  }
+  return admin.credential.applicationDefault();
+}
+
 const app = admin.initializeApp({
-  credential: admin.credential.applicationDefault(),
+  credential: getFirebaseCredential(),
   projectId: process.env.FIREBASE_PROJECT_ID,
 });
 
