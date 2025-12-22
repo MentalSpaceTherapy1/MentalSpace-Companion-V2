@@ -6,7 +6,9 @@
 |-------|-------|
 | **User ID** | `test-reviewer-user-001` |
 | **Email** | `reviewer@mentalspace-test.com` |
-| **Password** | N/A (Firebase Auth not required for MCP testing) |
+| **Auth Mode** | Reviewer bypass (enabled for GPT App Directory review only) |
+
+**Security Note:** The reviewer bypass is only enabled during the review period and requires the `test-reviewer-` prefix. Production users must authenticate via Firebase ID token.
 
 ## Pre-populated Test Data
 

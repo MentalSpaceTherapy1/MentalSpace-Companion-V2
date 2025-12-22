@@ -62,7 +62,7 @@ async function verifyAuthToken(idToken: string): Promise<{ userId: string; email
 
 /**
  * Extract auth token from MCP context
- * Supports both idToken (secure) and legacy userId (for backwards compatibility during transition)
+ * Requires Firebase ID token for secure authentication
  */
 async function getVerifiedUserId(meta: any): Promise<string | null> {
   // Preferred: Use Firebase ID token for secure authentication
@@ -71,14 +71,23 @@ async function getVerifiedUserId(meta: any): Promise<string | null> {
     return verified?.userId || null;
   }
 
-  // Legacy fallback: Direct userId (will be deprecated)
-  // Only allow in development or for test accounts
+  // Reviewer bypass: Only allowed when explicitly enabled via environment variable
+  // This is for GPT App Directory reviewers who need to test without full auth flow
   if (meta?.userId) {
-    const isTestUser = meta.userId.startsWith('test-');
-    const isDev = process.env.NODE_ENV === 'development';
+    const isReviewerBypassEnabled = process.env.ALLOW_REVIEWER_BYPASS === 'true';
+    const isTestUser = meta.userId.startsWith('test-reviewer-');
+    const hasReviewerSecret = meta?.reviewerSecret === process.env.REVIEWER_SECRET;
 
-    if (isTestUser || isDev) {
-      console.warn('Using legacy userId auth (will be deprecated)');
+    // Only allow if: bypass enabled AND (test-reviewer- prefix OR valid reviewer secret)
+    if (isReviewerBypassEnabled && (isTestUser || hasReviewerSecret)) {
+      console.warn('Reviewer bypass used for userId:', meta.userId.substring(0, 20) + '...');
+      return meta.userId;
+    }
+
+    // Development mode fallback (non-production only)
+    const isDev = process.env.NODE_ENV === 'development';
+    if (isDev) {
+      console.warn('Development mode: allowing direct userId');
       return meta.userId;
     }
 
