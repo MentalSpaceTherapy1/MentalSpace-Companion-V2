@@ -31,12 +31,124 @@ function getFirebaseCredential() {
   return admin.credential.applicationDefault();
 }
 
-const app = admin.initializeApp({
+const firebaseApp = admin.initializeApp({
   credential: getFirebaseCredential(),
   projectId: process.env.FIREBASE_PROJECT_ID,
 });
 
-const db = admin.firestore(app);
+const db = admin.firestore(firebaseApp);
+const auth = admin.auth(firebaseApp);
+
+// ========================================
+// SECURITY: Firebase ID Token Verification
+// ========================================
+
+/**
+ * Verify Firebase ID token and extract user ID
+ * This prevents userId spoofing by validating the token server-side
+ */
+async function verifyAuthToken(idToken: string): Promise<{ userId: string; email?: string } | null> {
+  try {
+    const decodedToken = await auth.verifyIdToken(idToken);
+    return {
+      userId: decodedToken.uid,
+      email: decodedToken.email,
+    };
+  } catch (error) {
+    console.error('Token verification failed:', error);
+    return null;
+  }
+}
+
+/**
+ * Extract auth token from MCP context
+ * Supports both idToken (secure) and legacy userId (for backwards compatibility during transition)
+ */
+async function getVerifiedUserId(meta: any): Promise<string | null> {
+  // Preferred: Use Firebase ID token for secure authentication
+  if (meta?.idToken) {
+    const verified = await verifyAuthToken(meta.idToken);
+    return verified?.userId || null;
+  }
+
+  // Legacy fallback: Direct userId (will be deprecated)
+  // Only allow in development or for test accounts
+  if (meta?.userId) {
+    const isTestUser = meta.userId.startsWith('test-');
+    const isDev = process.env.NODE_ENV === 'development';
+
+    if (isTestUser || isDev) {
+      console.warn('Using legacy userId auth (will be deprecated)');
+      return meta.userId;
+    }
+
+    console.error('Direct userId rejected - use idToken for authentication');
+    return null;
+  }
+
+  return null;
+}
+
+// ========================================
+// RATE LIMITING
+// ========================================
+
+interface RateLimitEntry {
+  count: number;
+  resetAt: number;
+}
+
+// In-memory rate limiting (consider Redis for production scaling)
+const rateLimits = new Map<string, RateLimitEntry>();
+
+interface RateLimitConfig {
+  maxRequests: number;
+  windowMs: number;
+}
+
+const RATE_LIMITS: Record<string, RateLimitConfig> = {
+  daily_checkin: { maxRequests: 10, windowMs: 24 * 60 * 60 * 1000 }, // 10 per day
+  crisis_support: { maxRequests: 20, windowMs: 60 * 60 * 1000 }, // 20 per hour
+  start_sos_protocol: { maxRequests: 30, windowMs: 24 * 60 * 60 * 1000 }, // 30 per day
+  set_weekly_focus: { maxRequests: 5, windowMs: 24 * 60 * 60 * 1000 }, // 5 per day
+  update_care_preferences: { maxRequests: 10, windowMs: 60 * 60 * 1000 }, // 10 per hour
+};
+
+function checkRateLimit(userId: string, toolName: string): { allowed: boolean; retryAfter?: number } {
+  const config = RATE_LIMITS[toolName];
+  if (!config) return { allowed: true };
+
+  const key = `${userId}:${toolName}`;
+  const now = Date.now();
+  const entry = rateLimits.get(key);
+
+  if (!entry || now > entry.resetAt) {
+    // Reset or create new entry
+    rateLimits.set(key, { count: 1, resetAt: now + config.windowMs });
+    return { allowed: true };
+  }
+
+  if (entry.count >= config.maxRequests) {
+    const retryAfter = Math.ceil((entry.resetAt - now) / 1000);
+    return { allowed: false, retryAfter };
+  }
+
+  entry.count++;
+  return { allowed: true };
+}
+
+function getRateLimitMessage(toolName: string, retryAfter: number): string {
+  const minutes = Math.ceil(retryAfter / 60);
+
+  if (toolName === 'daily_checkin') {
+    return `You've reached your daily check-in limit. This helps ensure thoughtful, meaningful check-ins. You can check in again in ${minutes} minutes.`;
+  }
+  if (toolName === 'crisis_support') {
+    return `I want to make sure you're getting the support you need. If you're in immediate danger, please call 988 or your local emergency number directly. You can use this tool again in ${minutes} minutes.`;
+  }
+
+  return `You've reached the limit for this action. Please try again in ${minutes} minutes.`;
+}
 
 // Create MCP Server
 const server = new Server(
@@ -59,16 +171,30 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 // Handle tool calls
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
+  const meta = (request.params as any)._meta;
 
-  // Get user ID from the MCP context (passed by ChatGPT)
-  const userId = (request.params as any)._meta?.userId;
+  // SECURITY: Verify user identity via Firebase ID token
+  const userId = await getVerifiedUserId(meta);
 
   if (!userId) {
     return {
       content: [
         {
           type: 'text',
-          text: 'Please connect your MentalSpace account first.',
+          text: 'Authentication required. Please sign in to your MentalSpace account to continue.',
+        },
+      ],
+    };
+  }
+
+  // Check rate limits for sensitive tools
+  const rateLimitResult = checkRateLimit(userId, name);
+  if (!rateLimitResult.allowed) {
+    return {
+      content: [
+        {
+          type: 'text',
+          text: getRateLimitMessage(name, rateLimitResult.retryAfter || 60),
         },
       ],
     };

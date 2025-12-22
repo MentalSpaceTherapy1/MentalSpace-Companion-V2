@@ -27,9 +27,19 @@ export async function handleCrisisSupport(db: Firestore, userId: string) {
         type: 'text',
         text: `**You're Not Alone - Help is Available**
 
-If you're in crisis or need immediate support, please reach out to one of these resources:
+**If you're in immediate danger, please call your local emergency number (911 in the US).**
 
-📞 **988 Suicide & Crisis Lifeline** (National)
+---
+
+**🌍 International / General:**
+• **Call your local emergency services** if you're in immediate danger
+• **International Association for Suicide Prevention:** https://www.iasp.info/resources/Crisis_Centres/
+
+---
+
+**🇺🇸 United States:**
+
+📞 **988 Suicide & Crisis Lifeline**
 Call or text **988** (available 24/7)
 Free, confidential support for people in distress
 
@@ -44,7 +54,11 @@ Treatment referrals and information (24/7)
 🏳️‍🌈 **The Trevor Project** (LGBTQ+ Youth)
 Call **1-866-488-7386** or text **START** to **678-678**
 
-🍑 **Georgia Crisis & Access Line** (Georgia Residents)
+---
+
+**🍑 Georgia Residents:**
+
+📞 **Georgia Crisis & Access Line**
 Call **1-800-715-4225** (available 24/7)
 Georgia's behavioral health crisis line
 
