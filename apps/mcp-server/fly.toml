@@ -1,5 +1,5 @@
 # fly.toml - Fly.io configuration for MentalSpace MCP Server
-app = "mentalspace-mcp"
+app = "mentalspace-companion-mcp"
 primary_region = "iad"
 
 [build]
