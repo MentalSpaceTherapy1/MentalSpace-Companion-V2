@@ -583,9 +583,28 @@ Based on review feedback, the following issues have been addressed:
 | Issue | Status | Resolution |
 |-------|--------|------------|
 | `crisis_support` marked read-only but has side effects | ✅ Fixed | Changed `readOnlyHint` to `false`, updated description to note logging |
-| Crisis resources US-only | ✅ Fixed | Added Georgia Crisis & Access Line (1-800-715-4225) and Georgia DBHDD info |
+| Crisis resources US-only | ✅ Fixed | Added international fallback (IASP link), local emergency guidance, Georgia resources |
 | Annotations not in API response | ✅ Fixed | Verified all 17 tools include annotations in JSON response |
 | No PII in crisis logs | ✅ Confirmed | Crisis events log: timestamp, triggerType, severity, resourcesShown (no user content) |
+| **Auth/identity spoofing risk** | ✅ Fixed | Implemented Firebase ID token verification server-side |
+| **Rate limiting missing** | ✅ Fixed | Added per-user rate limits for sensitive tools |
+
+### Security Implementation
+
+**Authentication:**
+- MCP server now requires Firebase ID token (`_meta.idToken`)
+- Tokens verified server-side using `admin.auth().verifyIdToken()`
+- User ID extracted from verified token, not client-controlled input
+- Legacy `userId` only allowed for test accounts (`test-*`)
+
+**Rate Limits:**
+| Tool | Limit | Window |
+|------|-------|--------|
+| `daily_checkin` | 10 | 24 hours |
+| `crisis_support` | 20 | 1 hour |
+| `start_sos_protocol` | 30 | 24 hours |
+| `set_weekly_focus` | 5 | 24 hours |
+| `update_care_preferences` | 10 | 1 hour |
 
 ### Remaining Items
 - [ ] Screenshots (5 minimum)
