@@ -187,9 +187,9 @@ export const tools: AnnotatedTool[] = [
   // ========================================
   {
     name: 'crisis_support',
-    description: `Provide immediate crisis support resources to the user. This should be called when a user expresses thoughts of self-harm, suicide, or severe distress. Returns crisis hotline information and resources. IMPORTANT: Always prioritize this tool when detecting crisis language.`,
+    description: `Provide immediate crisis support resources to the user. This should be called when a user expresses thoughts of self-harm, suicide, or severe distress. Returns crisis hotline information and resources. IMPORTANT: Always prioritize this tool when detecting crisis language. Note: This tool logs a crisis event for safety monitoring (no PII stored).`,
     annotations: {
-      readOnlyHint: true,
+      readOnlyHint: false,  // Has side effect: logs crisis event to Firestore
       destructiveHint: false,
       openWorldHint: false,
     },

@@ -29,7 +29,7 @@ export async function handleCrisisSupport(db: Firestore, userId: string) {
 
 If you're in crisis or need immediate support, please reach out to one of these resources:
 
-📞 **988 Suicide & Crisis Lifeline**
+📞 **988 Suicide & Crisis Lifeline** (National)
 Call or text **988** (available 24/7)
 Free, confidential support for people in distress
 
@@ -43,6 +43,13 @@ Treatment referrals and information (24/7)
 
 🏳️‍🌈 **The Trevor Project** (LGBTQ+ Youth)
 Call **1-866-488-7386** or text **START** to **678-678**
+
+🍑 **Georgia Crisis & Access Line** (Georgia Residents)
+Call **1-800-715-4225** (available 24/7)
+Georgia's behavioral health crisis line
+
+🏠 **Georgia DBHDD Mobile Crisis Teams**
+Available statewide for in-person crisis support
 
 ---
 
