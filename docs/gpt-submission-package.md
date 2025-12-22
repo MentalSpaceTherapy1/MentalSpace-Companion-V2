@@ -63,7 +63,7 @@ MentalSpace Companion helps users track their mental wellness through daily chec
 #### Crisis & SOS Tools
 | Tool | Description | Read-Only | Side Effects |
 |------|-------------|-----------|--------------|
-| `crisis_support` | Show crisis hotlines | Yes | Logs crisis event (no PII) |
+| `crisis_support` | Show crisis hotlines (GA + National) | **No** | Logs crisis event (no PII) |
 | `start_sos_protocol` | Begin guided coping protocol | No | Logs SOS event |
 | `guided_breathing` | Breathing exercise | Yes | None |
 | `grounding_exercise` | 5-4-3-2-1 grounding | Yes | None |
@@ -446,3 +446,147 @@ When `crisis_support` is triggered:
 - **Privacy:** privacy@mentalspacetherapy.com
 - **Website:** https://mentalspacetherapy.com
 - **Response Time:** Within 24 hours
+
+---
+
+## 11. Raw Tools JSON (For Review)
+
+**Endpoint:** `GET https://mentalspace-companion-mcp.fly.dev/api/tools`
+
+<details>
+<summary>Click to expand full JSON (17 tools with annotations)</summary>
+
+```json
+{
+  "tools": [
+    {
+      "name": "daily_checkin",
+      "description": "Record user's daily mental health check-in. This tool allows users to log their current mental state including mood, stress levels, sleep quality, energy, focus, and anxiety. Each metric is on a scale of 1-10. Users can also optionally add a journal entry. After completing a check-in, personalized actions will be generated.",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "mood": { "type": "number", "minimum": 1, "maximum": 10 },
+          "stress": { "type": "number", "minimum": 1, "maximum": 10 },
+          "sleep": { "type": "number", "minimum": 1, "maximum": 10 },
+          "energy": { "type": "number", "minimum": 1, "maximum": 10 },
+          "focus": { "type": "number", "minimum": 1, "maximum": 10 },
+          "anxiety": { "type": "number", "minimum": 1, "maximum": 10 },
+          "journalEntry": { "type": "string", "maxLength": 2000 }
+        },
+        "required": ["mood", "stress", "sleep", "energy", "focus", "anxiety"]
+      }
+    },
+    {
+      "name": "get_daily_plan",
+      "annotations": { "readOnlyHint": true, "destructiveHint": false, "openWorldHint": true }
+    },
+    {
+      "name": "complete_action",
+      "annotations": { "readOnlyHint": false, "destructiveHint": false, "openWorldHint": true, "idempotentHint": true }
+    },
+    {
+      "name": "swap_action",
+      "annotations": { "readOnlyHint": false, "destructiveHint": false, "openWorldHint": true }
+    },
+    {
+      "name": "get_weekly_summary",
+      "annotations": { "readOnlyHint": true, "destructiveHint": false, "openWorldHint": true }
+    },
+    {
+      "name": "get_streak_info",
+      "annotations": { "readOnlyHint": true, "destructiveHint": false, "openWorldHint": true }
+    },
+    {
+      "name": "crisis_support",
+      "description": "Provide immediate crisis support resources to the user. This should be called when a user expresses thoughts of self-harm, suicide, or severe distress. Returns crisis hotline information and resources. IMPORTANT: Always prioritize this tool when detecting crisis language. Note: This tool logs a crisis event for safety monitoring (no PII stored).",
+      "annotations": { "readOnlyHint": false, "destructiveHint": false, "openWorldHint": false }
+    },
+    {
+      "name": "start_sos_protocol",
+      "annotations": { "readOnlyHint": false, "destructiveHint": false, "openWorldHint": true }
+    },
+    {
+      "name": "guided_breathing",
+      "annotations": { "readOnlyHint": true, "destructiveHint": false, "openWorldHint": false }
+    },
+    {
+      "name": "grounding_exercise",
+      "annotations": { "readOnlyHint": true, "destructiveHint": false, "openWorldHint": false }
+    },
+    {
+      "name": "set_weekly_focus",
+      "annotations": { "readOnlyHint": false, "destructiveHint": false, "openWorldHint": true }
+    },
+    {
+      "name": "get_weekly_focus",
+      "annotations": { "readOnlyHint": true, "destructiveHint": false, "openWorldHint": true }
+    },
+    {
+      "name": "complete_daily_goal",
+      "annotations": { "readOnlyHint": false, "destructiveHint": false, "openWorldHint": true, "idempotentHint": true }
+    },
+    {
+      "name": "get_care_preferences",
+      "annotations": { "readOnlyHint": true, "destructiveHint": false, "openWorldHint": true }
+    },
+    {
+      "name": "update_care_preferences",
+      "annotations": { "readOnlyHint": false, "destructiveHint": false, "openWorldHint": true }
+    },
+    {
+      "name": "journal_prompt",
+      "annotations": { "readOnlyHint": true, "destructiveHint": false, "openWorldHint": false }
+    },
+    {
+      "name": "get_encouragement",
+      "annotations": { "readOnlyHint": true, "destructiveHint": false, "openWorldHint": false }
+    }
+  ]
+}
+```
+
+</details>
+
+### Annotations Summary
+
+| Tool | readOnlyHint | destructiveHint | openWorldHint | idempotentHint |
+|------|-------------|-----------------|---------------|----------------|
+| daily_checkin | false | false | true | - |
+| get_daily_plan | true | false | true | - |
+| complete_action | false | false | true | **true** |
+| swap_action | false | false | true | - |
+| get_weekly_summary | true | false | true | - |
+| get_streak_info | true | false | true | - |
+| **crisis_support** | **false** | false | false | - |
+| start_sos_protocol | false | false | true | - |
+| guided_breathing | true | false | false | - |
+| grounding_exercise | true | false | false | - |
+| set_weekly_focus | false | false | true | - |
+| get_weekly_focus | true | false | true | - |
+| complete_daily_goal | false | false | true | **true** |
+| get_care_preferences | true | false | true | - |
+| update_care_preferences | false | false | true | - |
+| journal_prompt | true | false | false | - |
+| get_encouragement | true | false | false | - |
+
+---
+
+## 12. Fixes Applied (Dec 2024)
+
+Based on review feedback, the following issues have been addressed:
+
+| Issue | Status | Resolution |
+|-------|--------|------------|
+| `crisis_support` marked read-only but has side effects | ✅ Fixed | Changed `readOnlyHint` to `false`, updated description to note logging |
+| Crisis resources US-only | ✅ Fixed | Added Georgia Crisis & Access Line (1-800-715-4225) and Georgia DBHDD info |
+| Annotations not in API response | ✅ Fixed | Verified all 17 tools include annotations in JSON response |
+| No PII in crisis logs | ✅ Confirmed | Crisis events log: timestamp, triggerType, severity, resourcesShown (no user content) |
+
+### Remaining Items
+- [ ] Screenshots (5 minimum)
+- [ ] Developer verification on platform.openai.com
