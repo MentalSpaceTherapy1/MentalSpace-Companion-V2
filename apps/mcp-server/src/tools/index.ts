@@ -6,13 +6,30 @@
 
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
 
-export const tools: Tool[] = [
+// GPT App Directory annotations type
+interface ToolAnnotations {
+  readOnlyHint?: boolean;
+  destructiveHint?: boolean;
+  openWorldHint?: boolean;
+  idempotentHint?: boolean;
+}
+
+interface AnnotatedTool extends Tool {
+  annotations?: ToolAnnotations;
+}
+
+export const tools: AnnotatedTool[] = [
   // ========================================
   // CHECK-IN TOOLS
   // ========================================
   {
     name: 'daily_checkin',
     description: `Record user's daily mental health check-in. This tool allows users to log their current mental state including mood, stress levels, sleep quality, energy, focus, and anxiety. Each metric is on a scale of 1-10. Users can also optionally add a journal entry. After completing a check-in, personalized actions will be generated.`,
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      openWorldHint: true,
+    },
     inputSchema: {
       type: 'object',
       properties: {
@@ -68,6 +85,11 @@ export const tools: Tool[] = [
   {
     name: 'get_daily_plan',
     description: `Get the user's personalized action plan for today. This returns 3 recommended actions based on their latest check-in: one coping strategy, one lifestyle action, and one social connection activity. Each action includes a title, description, estimated duration, and category.`,
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: true,
+    },
     inputSchema: {
       type: 'object',
       properties: {
@@ -82,6 +104,12 @@ export const tools: Tool[] = [
   {
     name: 'complete_action',
     description: `Mark an action from the daily plan as completed. This helps track progress and provides encouragement to the user.`,
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      openWorldHint: true,
+      idempotentHint: true,
+    },
     inputSchema: {
       type: 'object',
       properties: {
@@ -96,6 +124,11 @@ export const tools: Tool[] = [
   {
     name: 'swap_action',
     description: `Replace a planned action with an alternative. Use when a user can't or doesn't want to do a specific action.`,
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      openWorldHint: true,
+    },
     inputSchema: {
       type: 'object',
       properties: {
@@ -118,6 +151,11 @@ export const tools: Tool[] = [
   {
     name: 'get_weekly_summary',
     description: `Get a summary of the user's mental health trends over the past week. Includes average scores for each metric, trends (improving/stable/declining), completion rate for action plans, current streak, and personalized insights.`,
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: true,
+    },
     inputSchema: {
       type: 'object',
       properties: {
@@ -133,6 +171,11 @@ export const tools: Tool[] = [
   {
     name: 'get_streak_info',
     description: `Get the user's current check-in streak and longest streak information. Provides encouragement and motivation.`,
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: true,
+    },
     inputSchema: {
       type: 'object',
       properties: {},
@@ -145,6 +188,11 @@ export const tools: Tool[] = [
   {
     name: 'crisis_support',
     description: `Provide immediate crisis support resources to the user. This should be called when a user expresses thoughts of self-harm, suicide, or severe distress. Returns crisis hotline information and resources. IMPORTANT: Always prioritize this tool when detecting crisis language.`,
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
     inputSchema: {
       type: 'object',
       properties: {},
@@ -153,6 +201,11 @@ export const tools: Tool[] = [
   {
     name: 'start_sos_protocol',
     description: `Start a guided SOS protocol to help the user cope with a difficult moment. Available protocols: 'overwhelm' (feeling overwhelmed), 'panic' (panic attack), 'anger' (intense anger), 'cant_sleep' (insomnia), 'struggling' (general difficulty). Each protocol provides step-by-step guidance.`,
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      openWorldHint: true,
+    },
     inputSchema: {
       type: 'object',
       properties: {
@@ -168,6 +221,11 @@ export const tools: Tool[] = [
   {
     name: 'guided_breathing',
     description: `Guide the user through a breathing exercise. Supports different patterns for different situations. Returns step-by-step instructions with timing.`,
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
     inputSchema: {
       type: 'object',
       properties: {
@@ -188,6 +246,11 @@ export const tools: Tool[] = [
   {
     name: 'grounding_exercise',
     description: `Guide the user through a grounding exercise (5-4-3-2-1 technique). Helps during anxiety, panic, or dissociation. Returns interactive prompts for each sense.`,
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
     inputSchema: {
       type: 'object',
       properties: {},
@@ -200,6 +263,11 @@ export const tools: Tool[] = [
   {
     name: 'set_weekly_focus',
     description: `Set the user's focus area for the week. Creates 7 daily micro-goals aligned with the chosen focus area. Available focus areas: stress_relief, sleep_hygiene, mindfulness, physical_wellness, social_connection, emotional_processing, self_compassion, productivity, creativity, gratitude.`,
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      openWorldHint: true,
+    },
     inputSchema: {
       type: 'object',
       properties: {
@@ -231,6 +299,11 @@ export const tools: Tool[] = [
   {
     name: 'get_weekly_focus',
     description: `Get the user's current weekly focus, including today's micro-goal and overall progress.`,
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: true,
+    },
     inputSchema: {
       type: 'object',
       properties: {},
@@ -239,6 +312,12 @@ export const tools: Tool[] = [
   {
     name: 'complete_daily_goal',
     description: `Mark today's weekly focus micro-goal as completed.`,
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      openWorldHint: true,
+      idempotentHint: true,
+    },
     inputSchema: {
       type: 'object',
       properties: {
@@ -257,6 +336,11 @@ export const tools: Tool[] = [
   {
     name: 'get_care_preferences',
     description: `Get the user's care preferences including support style, goals, and personalization settings. Useful for tailoring responses and recommendations.`,
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: true,
+    },
     inputSchema: {
       type: 'object',
       properties: {},
@@ -265,6 +349,11 @@ export const tools: Tool[] = [
   {
     name: 'update_care_preferences',
     description: `Update specific care preferences. Use when the user expresses preferences about how they want to be supported.`,
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      openWorldHint: true,
+    },
     inputSchema: {
       type: 'object',
       properties: {
@@ -304,6 +393,11 @@ export const tools: Tool[] = [
   {
     name: 'journal_prompt',
     description: `Provide the user with a personalized journaling prompt based on their recent check-ins and current state. Good for reflection and self-discovery.`,
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
     inputSchema: {
       type: 'object',
       properties: {
@@ -322,6 +416,11 @@ export const tools: Tool[] = [
   {
     name: 'get_encouragement',
     description: `Get a personalized encouragement message for the user based on their current state and progress. Use when the user needs a boost or after completing actions.`,
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
     inputSchema: {
       type: 'object',
       properties: {
