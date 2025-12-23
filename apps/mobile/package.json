@@ -15,7 +15,9 @@
     "test": "jest",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
     "typecheck": "tsc --noEmit",
-    "generate-assets": "node scripts/generate-assets.js && node scripts/generate-notification-sound.js"
+    "generate-assets": "node scripts/generate-assets.js && node scripts/generate-notification-sound.js",
+    "android": "expo run:android",
+    "ios": "expo run:ios"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
