@@ -3,7 +3,7 @@
  * User preferences, account settings, and app configuration
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -16,15 +16,28 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import * as Haptics from '../../utils/haptics';
 import { useAuthStore } from '../../stores/authStore';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { colors, spacing, borderRadius, typography } from '../../constants/theme';
+import {
+  isBiometricSupported,
+  getBiometricType,
+  isBiometricEnabled,
+  enableBiometricLogin,
+  disableBiometricLogin,
+} from '../../services/biometricAuth';
+import {
+  saveNotificationPreferences,
+  getNotificationPreferences,
+  scheduleDailyCheckinReminder,
+} from '../../services/notifications';
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { profile, signOut, updatePreferences } = useAuthStore();
+  const { user, profile, signOut, updatePreferences } = useAuthStore();
   const [notifications, setNotifications] = useState({
     dailyReminder: profile?.preferences?.notifications?.dailyReminder ?? true,
     weeklyDigest: profile?.preferences?.notifications?.weeklyDigest ?? true,
@@ -34,6 +47,103 @@ export default function SettingsScreen() {
   const [privacyMode, setPrivacyMode] = useState<'full' | 'partial' | 'minimal'>(
     profile?.preferences?.privacyMode ?? 'partial'
   );
+
+  // Biometric settings
+  const [biometricSupported, setBiometricSupported] = useState(false);
+  const [biometricType, setBiometricType] = useState<string | null>(null);
+  const [biometricEnabled, setBiometricEnabled] = useState(false);
+
+  // Notification time settings
+  const [reminderTime, setReminderTime] = useState(
+    profile?.preferences?.notifications?.reminderTime ?? '09:00'
+  );
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [notificationPrivacyMode, setNotificationPrivacyMode] = useState(false);
+
+  // Load biometric and notification settings on mount
+  useEffect(() => {
+    loadBiometricSettings();
+    loadNotificationSettings();
+  }, []);
+
+  const loadBiometricSettings = async () => {
+    const supported = await isBiometricSupported();
+    setBiometricSupported(supported);
+
+    if (supported) {
+      const type = await getBiometricType();
+      setBiometricType(type);
+      const enabled = await isBiometricEnabled();
+      setBiometricEnabled(enabled);
+    }
+  };
+
+  const loadNotificationSettings = async () => {
+    const prefs = await getNotificationPreferences();
+    setReminderTime(prefs.dailyCheckinTime);
+    setNotificationPrivacyMode(prefs.privacyMode);
+  };
+
+  const handleBiometricToggle = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    if (!user) return;
+
+    if (biometricEnabled) {
+      await disableBiometricLogin();
+      setBiometricEnabled(false);
+    } else {
+      const result = await enableBiometricLogin(user.uid);
+      if (result.success) {
+        setBiometricEnabled(true);
+      } else {
+        Alert.alert('Error', result.error || 'Failed to enable biometric login');
+      }
+    }
+  };
+
+  const handleTimeChange = async (event: any, selectedDate?: Date) => {
+    setShowTimePicker(Platform.OS === 'ios');
+
+    if (selectedDate) {
+      const hours = selectedDate.getHours().toString().padStart(2, '0');
+      const minutes = selectedDate.getMinutes().toString().padStart(2, '0');
+      const timeString = `${hours}:${minutes}`;
+
+      setReminderTime(timeString);
+
+      // Save to notification preferences
+      await saveNotificationPreferences({ dailyCheckinTime: timeString });
+
+      // Reschedule notification
+      if (notifications.dailyReminder) {
+        await scheduleDailyCheckinReminder(timeString);
+      }
+
+      // Also update user profile preferences
+      await updatePreferences({
+        notifications: {
+          ...profile?.preferences?.notifications,
+          reminderTime: timeString,
+        },
+      });
+    }
+  };
+
+  const handleNotificationPrivacyToggle = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const newValue = !notificationPrivacyMode;
+    setNotificationPrivacyMode(newValue);
+    await saveNotificationPreferences({ privacyMode: newValue });
+  };
+
+  // Parse reminder time to Date object for picker
+  const getReminderTimeDate = () => {
+    const [hours, minutes] = reminderTime.split(':').map(Number);
+    const date = new Date();
+    date.setHours(hours, minutes, 0, 0);
+    return date;
+  };
 
   const handleToggle = async (key: keyof typeof notifications) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -200,6 +310,33 @@ export default function SettingsScreen() {
         />
         <Divider />
         <SettingRow
+          icon="time"
+          title="Reminder Time"
+          subtitle={`Daily check-in reminder at ${reminderTime}`}
+          trailing={
+            <Pressable
+              style={styles.timeButton}
+              onPress={() => setShowTimePicker(true)}
+            >
+              <Text style={styles.timeButtonText}>{reminderTime}</Text>
+            </Pressable>
+          }
+        />
+        <Divider />
+        <SettingRow
+          icon="eye-off"
+          title="Private Notifications"
+          subtitle="Hide notification content on lock screen"
+          trailing={
+            <Switch
+              value={notificationPrivacyMode}
+              onValueChange={handleNotificationPrivacyToggle}
+              trackColor={{ true: colors.primary, false: colors.border }}
+            />
+          }
+        />
+        <Divider />
+        <SettingRow
           icon="mail"
           title="Weekly Digest"
           subtitle="Receive weekly summary via email"
@@ -213,6 +350,16 @@ export default function SettingsScreen() {
         />
       </Card>
 
+      {/* Time Picker Modal */}
+      {showTimePicker && (
+        <DateTimePicker
+          value={getReminderTimeDate()}
+          mode="time"
+          is24Hour={false}
+          onChange={handleTimeChange}
+        />
+      )}
+
       {/* Focus Areas */}
       <Text style={styles.sectionTitle}>Focus Areas</Text>
       <Card style={styles.settingsCard}>
@@ -222,6 +369,37 @@ export default function SettingsScreen() {
           subtitle="Choose areas to focus on"
           trailing={<Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />}
           onPress={() => {}}
+        />
+      </Card>
+
+      {/* Sleep Tracking */}
+      <Text style={styles.sectionTitle}>Sleep Tracking</Text>
+      <Card style={styles.settingsCard}>
+        <SettingRow
+          icon="moon"
+          title="Sleep Tracker"
+          subtitle="Log and track your sleep patterns"
+          iconColor={colors.coping}
+          trailing={<Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />}
+          onPress={() => router.push('/(sleep)')}
+        />
+        <Divider />
+        <SettingRow
+          icon="flag"
+          title="Sleep Goals"
+          subtitle="Set your target sleep schedule"
+          iconColor={colors.coping}
+          trailing={<Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />}
+          onPress={() => router.push('/(sleep)/goals')}
+        />
+        <Divider />
+        <SettingRow
+          icon="bulb"
+          title="Sleep Tips"
+          subtitle="Learn how to improve your sleep"
+          iconColor={colors.connection}
+          trailing={<Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />}
+          onPress={() => router.push('/(sleep)/tips')}
         />
       </Card>
 
@@ -319,6 +497,23 @@ export default function SettingsScreen() {
       {/* Privacy & Security */}
       <Text style={styles.sectionTitle}>Privacy & Security</Text>
       <Card style={styles.settingsCard}>
+        {biometricSupported && (
+          <>
+            <SettingRow
+              icon={biometricType === 'Face ID' ? 'scan' : 'finger-print'}
+              title={biometricType || 'Biometric Login'}
+              subtitle={`Use ${biometricType || 'biometrics'} to unlock the app`}
+              trailing={
+                <Switch
+                  value={biometricEnabled}
+                  onValueChange={handleBiometricToggle}
+                  trackColor={{ true: colors.primary, false: colors.border }}
+                />
+              }
+            />
+            <Divider />
+          </>
+        )}
         <SettingRow
           icon="lock-closed"
           title="Change Password"
@@ -345,6 +540,15 @@ export default function SettingsScreen() {
       {/* Trusted Contacts */}
       <Text style={styles.sectionTitle}>Your Support Network</Text>
       <Card style={styles.settingsCard}>
+        <SettingRow
+          icon="shield-checkmark"
+          title="My Safety Plan"
+          subtitle="Personal crisis guide with contacts and strategies"
+          iconColor={colors.success}
+          trailing={<Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />}
+          onPress={() => router.push('/(safety-plan)')}
+        />
+        <Divider />
         <SettingRow
           icon="people"
           title="Trusted Contacts"
@@ -640,5 +844,18 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.sm,
     color: colors.textTertiary,
     marginTop: spacing.xl,
+  },
+  timeButton: {
+    backgroundColor: colors.surfaceSecondary,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  timeButtonText: {
+    fontSize: typography.fontSize.base,
+    fontWeight: typography.fontWeight.semibold,
+    color: colors.primary,
   },
 });

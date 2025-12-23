@@ -28,7 +28,7 @@ export const tools: AnnotatedTool[] = [
     annotations: {
       readOnlyHint: false,
       destructiveHint: false,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     inputSchema: {
       type: 'object',
@@ -88,7 +88,7 @@ export const tools: AnnotatedTool[] = [
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     inputSchema: {
       type: 'object',
@@ -107,7 +107,7 @@ export const tools: AnnotatedTool[] = [
     annotations: {
       readOnlyHint: false,
       destructiveHint: false,
-      openWorldHint: true,
+      openWorldHint: false,
       idempotentHint: true,
     },
     inputSchema: {
@@ -127,7 +127,7 @@ export const tools: AnnotatedTool[] = [
     annotations: {
       readOnlyHint: false,
       destructiveHint: false,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     inputSchema: {
       type: 'object',
@@ -154,7 +154,7 @@ export const tools: AnnotatedTool[] = [
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     inputSchema: {
       type: 'object',
@@ -174,7 +174,7 @@ export const tools: AnnotatedTool[] = [
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     inputSchema: {
       type: 'object',
@@ -204,7 +204,7 @@ export const tools: AnnotatedTool[] = [
     annotations: {
       readOnlyHint: false,
       destructiveHint: false,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     inputSchema: {
       type: 'object',
@@ -266,7 +266,7 @@ export const tools: AnnotatedTool[] = [
     annotations: {
       readOnlyHint: false,
       destructiveHint: false,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     inputSchema: {
       type: 'object',
@@ -302,7 +302,7 @@ export const tools: AnnotatedTool[] = [
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     inputSchema: {
       type: 'object',
@@ -315,7 +315,7 @@ export const tools: AnnotatedTool[] = [
     annotations: {
       readOnlyHint: false,
       destructiveHint: false,
-      openWorldHint: true,
+      openWorldHint: false,
       idempotentHint: true,
     },
     inputSchema: {
@@ -339,7 +339,7 @@ export const tools: AnnotatedTool[] = [
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     inputSchema: {
       type: 'object',
@@ -352,7 +352,7 @@ export const tools: AnnotatedTool[] = [
     annotations: {
       readOnlyHint: false,
       destructiveHint: false,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     inputSchema: {
       type: 'object',

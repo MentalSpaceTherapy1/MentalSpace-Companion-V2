@@ -1,0 +1,77 @@
+<!--
+  Android App Shortcuts Configuration
+  This file defines static shortcuts that appear when long-pressing the app icon.
+
+  NOTE: To use this file:
+  1. Run `npx expo prebuild` to generate the native Android project
+  2. Copy this file to android/app/src/main/res/xml/shortcuts.xml
+  3. Reference it in AndroidManifest.xml within the main activity:
+     <meta-data android:name="android.app.shortcuts" android:resource="@xml/shortcuts" />
+-->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+
+  <!-- Check-in Shortcut -->
+  <shortcut
+    android:shortcutId="checkin"
+    android:enabled="true"
+    android:icon="@drawable/ic_shortcut_checkin"
+    android:shortcutShortLabel="@string/shortcut_checkin_short"
+    android:shortcutLongLabel="@string/shortcut_checkin_long"
+    android:shortcutDisabledMessage="@string/shortcut_disabled">
+    <intent
+      android:action="android.intent.action.VIEW"
+      android:targetPackage="com.mentalspace.companion"
+      android:targetClass="com.mentalspace.companion.MainActivity"
+      android:data="mentalspace://checkin" />
+    <categories android:name="android.shortcut.conversation" />
+  </shortcut>
+
+  <!-- Journal Shortcut -->
+  <shortcut
+    android:shortcutId="journal"
+    android:enabled="true"
+    android:icon="@drawable/ic_shortcut_journal"
+    android:shortcutShortLabel="@string/shortcut_journal_short"
+    android:shortcutLongLabel="@string/shortcut_journal_long"
+    android:shortcutDisabledMessage="@string/shortcut_disabled">
+    <intent
+      android:action="android.intent.action.VIEW"
+      android:targetPackage="com.mentalspace.companion"
+      android:targetClass="com.mentalspace.companion.MainActivity"
+      android:data="mentalspace://journal" />
+    <categories android:name="android.shortcut.conversation" />
+  </shortcut>
+
+  <!-- Sleep Tracker Shortcut -->
+  <shortcut
+    android:shortcutId="sleep"
+    android:enabled="true"
+    android:icon="@drawable/ic_shortcut_sleep"
+    android:shortcutShortLabel="@string/shortcut_sleep_short"
+    android:shortcutLongLabel="@string/shortcut_sleep_long"
+    android:shortcutDisabledMessage="@string/shortcut_disabled">
+    <intent
+      android:action="android.intent.action.VIEW"
+      android:targetPackage="com.mentalspace.companion"
+      android:targetClass="com.mentalspace.companion.MainActivity"
+      android:data="mentalspace://sleep" />
+    <categories android:name="android.shortcut.conversation" />
+  </shortcut>
+
+  <!-- SOS / Get Help Shortcut -->
+  <shortcut
+    android:shortcutId="sos"
+    android:enabled="true"
+    android:icon="@drawable/ic_shortcut_sos"
+    android:shortcutShortLabel="@string/shortcut_sos_short"
+    android:shortcutLongLabel="@string/shortcut_sos_long"
+    android:shortcutDisabledMessage="@string/shortcut_disabled">
+    <intent
+      android:action="android.intent.action.VIEW"
+      android:targetPackage="com.mentalspace.companion"
+      android:targetClass="com.mentalspace.companion.MainActivity"
+      android:data="mentalspace://sos" />
+    <categories android:name="android.shortcut.conversation" />
+  </shortcut>
+
+</shortcuts>

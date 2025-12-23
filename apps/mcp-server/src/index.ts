@@ -163,7 +163,7 @@ function getRateLimitMessage(toolName: string, retryAfter: number): string {
 const server = new Server(
   {
     name: 'mentalspace-companion',
-    version: '2.0.0',
+    version: '2.0.1',
   },
   {
     capabilities: {
@@ -539,13 +539,24 @@ async function startHttpServer() {
   const helmet = (await import('helmet')).default;
 
   const httpApp = expressApp();
+
+  // OpenAI Domain Verification endpoint - BEFORE helmet to avoid CORS/security header issues
+  httpApp.get('/.well-known/openai-apps-challenge', (req, res) => {
+    console.log(`[VERIFICATION] Request from ${req.ip} - User-Agent: ${req.get('User-Agent')}`);
+    res.set('Content-Type', 'text/plain; charset=utf-8');
+    res.set('Cache-Control', 'no-store, max-age=0');
+    res.set('Access-Control-Allow-Origin', '*');
+    // Token without trailing newline - exact match required
+    res.status(200).send('HcvfgwY67jHuzdacGXSYTaA2DzGAyMNYZZ40VgcGGko');
+  });
+
   httpApp.use(cors());
   httpApp.use(helmet());
   httpApp.use(expressApp.json());
 
   // Health check endpoint
   httpApp.get('/health', (req, res) => {
-    res.json({ status: 'healthy', version: '2.0.0', timestamp: new Date().toISOString() });
+    res.json({ status: 'healthy', version: '2.0.1', timestamp: new Date().toISOString() });
   });
 
   // Ready check endpoint
@@ -566,7 +577,161 @@ async function startHttpServer() {
 
   // Version endpoint
   httpApp.get('/api/version', (req, res) => {
-    res.json({ name: 'mentalspace-mcp', version: '2.0.0' });
+    res.json({ name: 'mentalspace-mcp', version: '2.0.1' });
+  });
+
+  // ========================================
+  // MCP Protocol Endpoints for OpenAI Apps
+  // ========================================
+
+  // Helper to execute a tool call
+  async function executeToolCall(name: string, args: any, meta: any) {
+    const userId = await getVerifiedUserId(meta || {});
+
+    if (!userId) {
+      return {
+        content: [{ type: 'text', text: 'Authentication required. Please sign in to your MentalSpace account.' }],
+        isError: true,
+      };
+    }
+
+    const rateLimitResult = checkRateLimit(userId, name);
+    if (!rateLimitResult.allowed) {
+      return {
+        content: [{ type: 'text', text: getRateLimitMessage(name, rateLimitResult.retryAfter || 60) }],
+      };
+    }
+
+    switch (name) {
+      case 'daily_checkin':
+        return await handleCheckin(db, userId, args);
+      case 'get_daily_plan':
+        return await handleGetPlan(db, userId, args);
+      case 'complete_action':
+        return await handleCompleteAction(db, userId, args);
+      case 'swap_action':
+        return await handleSwapAction(db, userId, args);
+      case 'get_weekly_summary':
+        return await handleGetSummary(db, userId, args);
+      case 'get_streak_info':
+        return await handleGetStreakInfo(db, userId);
+      case 'crisis_support':
+        return await handleCrisisSupport(db, userId);
+      case 'start_sos_protocol':
+        return await handleStartSOSProtocol(db, userId, args as any);
+      case 'guided_breathing':
+        return await handleGuidedBreathing(db, userId, args as any);
+      case 'grounding_exercise':
+        return await handleGroundingExercise(db, userId);
+      case 'set_weekly_focus':
+        return await handleSetWeeklyFocus(db, userId, args as any);
+      case 'get_weekly_focus':
+        return await handleGetWeeklyFocus(db, userId);
+      case 'complete_daily_goal':
+        return await handleCompleteDailyGoal(db, userId, args as any);
+      case 'get_care_preferences':
+        return await handleGetCarePreferences(db, userId);
+      case 'update_care_preferences':
+        return await handleUpdateCarePreferences(db, userId, args as any);
+      case 'journal_prompt':
+        return await handleJournalPrompt(db, userId, args as any);
+      case 'get_encouragement':
+        return await handleGetEncouragement(db, userId, args as any);
+      default:
+        return { content: [{ type: 'text', text: `Unknown tool: ${name}` }], isError: true };
+    }
+  }
+
+  // MCP JSON-RPC 2.0 endpoint (Streamable HTTP transport)
+  httpApp.post('/mcp', async (req, res) => {
+    const { jsonrpc, id, method, params } = req.body;
+
+    // Validate JSON-RPC 2.0 request
+    if (jsonrpc !== '2.0') {
+      return res.status(400).json({
+        jsonrpc: '2.0',
+        id: id || null,
+        error: { code: -32600, message: 'Invalid Request - must be JSON-RPC 2.0' },
+      });
+    }
+
+    try {
+      let result;
+
+      switch (method) {
+        case 'initialize':
+          result = {
+            protocolVersion: '2024-11-05',
+            capabilities: { tools: {} },
+            serverInfo: { name: 'mentalspace-companion', version: '2.0.1' },
+          };
+          break;
+
+        case 'tools/list':
+          result = { tools };
+          break;
+
+        case 'tools/call':
+          const { name, arguments: args } = params || {};
+          const meta = params?._meta || {};
+          result = await executeToolCall(name, args, meta);
+          break;
+
+        case 'ping':
+          result = {};
+          break;
+
+        default:
+          return res.json({
+            jsonrpc: '2.0',
+            id,
+            error: { code: -32601, message: `Method not found: ${method}` },
+          });
+      }
+
+      res.json({ jsonrpc: '2.0', id, result });
+    } catch (error) {
+      console.error(`MCP error for method ${method}:`, error);
+      res.json({
+        jsonrpc: '2.0',
+        id,
+        error: { code: -32603, message: 'Internal error' },
+      });
+    }
+  });
+
+  // GET /mcp - Server info for discovery (some scanners use GET)
+  httpApp.get('/mcp', (req, res) => {
+    res.json({
+      name: 'mentalspace-companion',
+      version: '2.0.1',
+      protocol_version: '2024-11-05',
+      capabilities: { tools: {} },
+      mcp_endpoint: 'POST /mcp',
+    });
+  });
+
+  // Legacy REST endpoints for compatibility
+  httpApp.get('/mcp/tools', (req, res) => {
+    res.json({ tools });
+  });
+
+  httpApp.post('/mcp/tools/list', (req, res) => {
+    res.json({ tools });
+  });
+
+  httpApp.post('/mcp/tools/call', async (req, res) => {
+    const { name, arguments: args, _meta: meta } = req.body;
+    try {
+      const result = await executeToolCall(name, args, meta);
+      res.json(result);
+    } catch (error) {
+      console.error(`Error handling tool ${name}:`, error);
+      res.status(500).json({
+        content: [{ type: 'text', text: 'An error occurred while processing your request.' }],
+        isError: true,
+      });
+    }
   });
 
   const PORT = process.env.PORT || 8080;
@@ -582,12 +747,12 @@ async function main() {
   if (isHttpMode) {
     // HTTP mode for Fly.io
     await startHttpServer();
-    console.log('MentalSpace MCP Server v2.0 started (HTTP mode)');
+    console.log('MentalSpace MCP Server v2.0.1 started (HTTP mode)');
   } else {
     // Stdio mode for local/ChatGPT
     const transport = new StdioServerTransport();
     await server.connect(transport);
-    console.error('MentalSpace MCP Server v2.0 started (Stdio mode)');
+    console.error('MentalSpace MCP Server v2.0.1 started (Stdio mode)');
   }
 }
 

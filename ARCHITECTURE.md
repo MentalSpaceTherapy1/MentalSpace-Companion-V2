@@ -4,6 +4,8 @@
 
 A cross-platform mental health companion app with ChatGPT integration.
 
+> **Full PRD:** See [docs/PRD.md](docs/PRD.md) for the complete product requirements document.
+
 ### Target Platforms
 - iOS (native via Expo)
 - Android (native via Expo)
@@ -456,3 +458,62 @@ ChatGPT: Uses complete_action tool
 | Testing | 1 week | Full test coverage |
 | Polish | 1 week | Performance, accessibility, bugs |
 | **Total** | **8 weeks** | Production-ready app |
+
+---
+
+## Implementation Status
+
+### Completed Features (~90% of PRD)
+
+#### Part 1: Native Mobile Infrastructure (100%)
+- [x] Sign in with Apple/Google (`services/socialAuth.ts`)
+- [x] Email Authentication (`services/firebase.ts`)
+- [x] Biometric Unlock - Face ID/Touch ID (`services/biometricAuth.ts`)
+- [x] Push Notifications (`services/notifications.ts`)
+- [x] Offline-First Architecture (`services/offlineStorage.ts`)
+- [x] Native SOS Access (`app/(tabs)/sos.tsx`, `app/(sos)/*`)
+- [x] Account Settings (`app/(tabs)/settings.tsx`)
+
+#### Part 2: Experience Upgrades (100%)
+- [x] "Today" Home Screen (`app/(tabs)/index.tsx`)
+- [x] Streaks & Progress (`services/streakService.ts`, `stores/streakStore.ts`)
+- [x] Basic Haptics (`utils/haptics.ts`)
+- [x] Widgets & Quick Actions (`widgets/*`, `services/quickActions.ts`, `services/widgetBridge.ts`, `hooks/useQuickActions.ts`)
+
+#### Part 3: Core Features (100%)
+- [x] Care Preferences Setup (`app/(care-preferences)/*`)
+- [x] Daily Check-In - 6 metrics (`app/(tabs)/checkin.tsx`)
+- [x] Weekly Focus (`app/(weekly-focus)/*`)
+- [x] AI-Generated Daily Plan (`app/(tabs)/plan.tsx`)
+- [x] SOS Protocols (`app/(sos)/protocol.tsx`)
+- [x] Crisis Resources (`app/(sos)/resources.tsx`)
+- [x] Therapist Booking (`app/(telehealth)/*`)
+- [x] Weekly Summary with Charts (`app/(tabs)/summary.tsx`)
+- [x] Trusted Contacts (`app/(care-preferences)/trusted-contacts.tsx`)
+- [x] Safety Plan Builder (`app/(safety-plan)/*`, `stores/safetyPlanStore.ts`)
+- [x] Smart Journaling / Voice Notes (`app/(journal)/*`, `stores/journalStore.ts`, `components/VoiceNoteRecorder.tsx`)
+- [x] Insights Dashboard (`app/(insights)/*`, `stores/insightsStore.ts`)
+- [x] Sleep Support Suite (`app/(sleep)/*`, `stores/sleepStore.ts`)
+
+#### Backend (100%)
+- [x] Firebase Cloud Functions (`firebase/functions/src/*`)
+- [x] MCP Server for ChatGPT (`apps/mcp-server/src/*`)
+- [x] Firestore Security Rules (`firebase/firestore.rules`)
+- [x] App Icons & Splash Screen (`scripts/generate-assets.js`)
+- [x] Notification Sound (`scripts/generate-notification-sound.js`)
+
+### Missing Features (Priority Order)
+
+**MEDIUM PRIORITY:**
+1. Firebase Analytics & Crashlytics
+2. Apple Health / Google Fit Integration
+3. Content Personalization Engine
+4. Predictive & Proactive Support
+5. Post-Session Reflection
+
+**LOWER PRIORITY:**
+6. Siri Shortcuts / Google Assistant
+7. Calendar Integration
+8. Photo Mood Board
+9. Full Accessibility Audit
+10. CI/CD Pipeline (GitHub Actions)

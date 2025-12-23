@@ -1,0 +1,20 @@
+<!--
+  Android Strings for App Shortcuts
+  Copy this content to android/app/src/main/res/values/strings.xml after prebuild
+-->
+<resources>
+  <!-- App Shortcut Strings -->
+  <string name="shortcut_checkin_short">Check-in</string>
+  <string name="shortcut_checkin_long">Start daily check-in</string>
+
+  <string name="shortcut_journal_short">Journal</string>
+  <string name="shortcut_journal_long">New journal entry</string>
+
+  <string name="shortcut_sleep_short">Sleep</string>
+  <string name="shortcut_sleep_long">Log sleep</string>
+
+  <string name="shortcut_sos_short">Get Help</string>
+  <string name="shortcut_sos_long">Crisis resources</string>
+
+  <string name="shortcut_disabled">Shortcut unavailable</string>
+</resources>

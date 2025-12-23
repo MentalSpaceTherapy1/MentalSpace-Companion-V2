@@ -3,13 +3,13 @@
  * Dashboard with today's status and quick actions
  */
 
-import { View, Text, StyleSheet, ScrollView, Pressable, RefreshControl, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from '../../utils/haptics';
 import { useAuthStore } from '../../stores/authStore';
 import { useCheckinStore } from '../../stores/checkinStore';
+import { useStreakStore, getStreakMessage } from '../../stores/streakStore';
 import { colors, spacing, borderRadius, typography, shadows } from '../../constants/theme';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -19,55 +19,19 @@ export default function HomeScreen() {
   const router = useRouter();
   const { profile } = useAuthStore();
   const { todayCheckin, isLoading, refresh } = useCheckinStore();
+  const { streak, fetchStreak, refreshStreak } = useStreakStore();
   const [refreshing, setRefreshing] = useState(false);
 
-  // SOS button animation
-  const sosScale = useRef(new Animated.Value(1)).current;
-  const sosPulse = useRef(new Animated.Value(1)).current;
-
+  // Fetch streak on mount
   useEffect(() => {
-    // Gentle pulse animation for SOS button
-    const pulseAnimation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(sosPulse, {
-          toValue: 1.05,
-          duration: 1500,
-          useNativeDriver: true,
-        }),
-        Animated.timing(sosPulse, {
-          toValue: 1,
-          duration: 1500,
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    pulseAnimation.start();
-    return () => pulseAnimation.stop();
-  }, []);
-
-  const handleSOSPress = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    Animated.sequence([
-      Animated.timing(sosScale, {
-        toValue: 0.9,
-        duration: 100,
-        useNativeDriver: true,
-      }),
-      Animated.timing(sosScale, {
-        toValue: 1,
-        duration: 100,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      router.push('/(sos)');
-    });
-  };
+    fetchStreak();
+  }, [fetchStreak]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await refresh();
+    await Promise.all([refresh(), refreshStreak()]);
     setRefreshing(false);
-  }, [refresh]);
+  }, [refresh, refreshStreak]);
 
   const greeting = getGreeting();
   const firstName = profile?.displayName?.split(' ')[0] || 'there';
@@ -129,22 +93,22 @@ export default function HomeScreen() {
           onPress={() => router.push('/(tabs)/checkin')}
         />
         <QuickAction
-          icon="list"
-          label="View Plan"
-          color={colors.lifestyle}
-          onPress={() => router.push('/(tabs)/plan')}
+          icon="book"
+          label="Journal"
+          color={colors.connection}
+          onPress={() => router.push('/(journal)')}
         />
         <QuickAction
-          icon="stats-chart"
-          label="Summary"
+          icon="moon"
+          label="Sleep"
           color={colors.coping}
-          onPress={() => router.push('/(tabs)/summary')}
+          onPress={() => router.push('/(sleep)')}
         />
         <QuickAction
           icon="heart"
           label="Get Help"
           color={colors.sos}
-          onPress={() => router.push('/(sos)')}
+          onPress={() => router.push('/(tabs)/sos')}
         />
       </View>
 
@@ -174,36 +138,37 @@ export default function HomeScreen() {
       </Pressable>
 
       {/* Streak Card */}
-      <Card style={styles.streakCard}>
+      <Card style={[
+        styles.streakCard,
+        streak?.currentStreak === 0 && styles.streakCardInactive,
+      ]}>
         <View style={styles.streakContent}>
           <View style={styles.streakIcon}>
-            <Ionicons name="flame" size={32} color={colors.connection} />
+            <Ionicons
+              name={streak?.currentStreak ? "flame" : "flame-outline"}
+              size={32}
+              color={streak?.currentStreak ? colors.connection : 'rgba(255, 255, 255, 0.6)'}
+            />
           </View>
           <View style={styles.streakInfo}>
-            <Text style={styles.streakNumber}>7</Text>
-            <Text style={styles.streakLabel}>Day Streak</Text>
+            <Text style={styles.streakNumber}>
+              {streak?.currentStreak ?? 0}
+            </Text>
+            <Text style={styles.streakLabel}>
+              Day{streak?.currentStreak !== 1 ? 's' : ''} Streak
+            </Text>
           </View>
-          <Text style={styles.streakMessage}>Keep it up!</Text>
+          <Text style={styles.streakMessage}>
+            {getStreakMessage(streak?.currentStreak ?? 0)}
+          </Text>
         </View>
+        {streak && streak.longestStreak > streak.currentStreak && (
+          <Text style={styles.longestStreak}>
+            Longest: {streak.longestStreak} days
+          </Text>
+        )}
       </Card>
     </ScrollView>
-
-    {/* Floating SOS Button */}
-    <Pressable onPress={handleSOSPress} style={styles.sosButtonContainer}>
-      <Animated.View
-        style={[
-          styles.sosButton,
-          {
-            transform: [
-              { scale: Animated.multiply(sosScale, sosPulse) },
-            ],
-          },
-        ]}
-      >
-        <Ionicons name="heart" size={28} color={colors.textInverse} />
-        <Text style={styles.sosButtonText}>SOS</Text>
-      </Animated.View>
-    </Pressable>
     </View>
   );
 }
@@ -347,6 +312,9 @@ const styles = StyleSheet.create({
   streakCard: {
     backgroundColor: colors.primary,
   },
+  streakCardInactive: {
+    backgroundColor: colors.textSecondary,
+  },
   streakContent: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -376,6 +344,12 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.sm,
     fontWeight: typography.fontWeight.medium,
     color: colors.textInverse,
+  },
+  longestStreak: {
+    fontSize: typography.fontSize.xs,
+    color: 'rgba(255, 255, 255, 0.7)',
+    marginTop: spacing.sm,
+    textAlign: 'center',
   },
   // Telehealth Card Styles
   telehealthCard: {
@@ -430,29 +404,5 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.xs,
     color: colors.textInverse,
     fontWeight: typography.fontWeight.medium,
-  },
-  sosButtonContainer: {
-    position: 'absolute',
-    bottom: spacing.lg,
-    right: spacing.lg,
-    zIndex: 100,
-  },
-  sosButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    backgroundColor: colors.sos,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderRadius: borderRadius.full,
-    ...shadows.lg,
-    shadowColor: colors.sos,
-    shadowOpacity: 0.4,
-    elevation: 8,
-  },
-  sosButtonText: {
-    fontSize: typography.fontSize.lg,
-    fontWeight: typography.fontWeight.bold,
-    color: colors.textInverse,
   },
 });

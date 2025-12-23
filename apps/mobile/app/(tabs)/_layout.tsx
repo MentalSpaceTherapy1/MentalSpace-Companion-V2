@@ -4,15 +4,49 @@
  */
 
 import { Tabs } from 'expo-router';
-import { Platform } from 'react-native';
+import { Platform, View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing } from '../../constants/theme';
+import { colors, spacing, borderRadius, shadows } from '../../constants/theme';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
 function TabBarIcon({ name, color }: { name: IconName; color: string }) {
   return <Ionicons name={name} size={24} color={color} />;
 }
+
+// Special SOS tab icon with distinctive styling
+function SOSTabIcon({ focused }: { focused: boolean }) {
+  return (
+    <View style={[
+      sosStyles.container,
+      focused && sosStyles.containerFocused,
+    ]}>
+      <Ionicons
+        name="heart"
+        size={26}
+        color={colors.textInverse}
+      />
+    </View>
+  );
+}
+
+const sosStyles = StyleSheet.create({
+  container: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: colors.sos,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: -20,
+    ...shadows.md,
+    shadowColor: colors.sos,
+    shadowOpacity: 0.4,
+  },
+  containerFocused: {
+    transform: [{ scale: 1.1 }],
+  },
+});
 
 export default function TabsLayout() {
   return (
@@ -55,6 +89,15 @@ export default function TabsLayout() {
           title: 'Check-in',
           tabBarIcon: ({ color }) => <TabBarIcon name="add-circle" color={color} />,
           headerTitle: 'Daily Check-in',
+        }}
+      />
+      <Tabs.Screen
+        name="sos"
+        options={{
+          title: 'SOS',
+          tabBarIcon: ({ focused }) => <SOSTabIcon focused={focused} />,
+          headerTitle: 'Get Help',
+          tabBarLabel: () => null, // Hide the label for the center button
         }}
       />
       <Tabs.Screen

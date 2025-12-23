@@ -7,10 +7,26 @@
 const admin = require('firebase-admin');
 
 // Initialize Firebase Admin
-const serviceAccount = require('../firebase/service-account.json');
+// Supports: FIREBASE_SERVICE_ACCOUNT env var (JSON string) or local file
+function getCredential() {
+  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    return admin.credential.cert(serviceAccount);
+  }
+
+  // Try local file as fallback
+  try {
+    const serviceAccount = require('../firebase/service-account.json');
+    return admin.credential.cert(serviceAccount);
+  } catch {
+    console.error('No Firebase credentials found!');
+    console.error('Set FIREBASE_SERVICE_ACCOUNT env var or create firebase/service-account.json');
+    process.exit(1);
+  }
+}
 
 admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
+  credential: getCredential(),
   projectId: 'mentalspace-companion'
 });
 

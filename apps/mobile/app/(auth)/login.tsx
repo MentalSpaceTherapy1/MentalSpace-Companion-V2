@@ -1,9 +1,9 @@
 /**
  * Login Screen
- * User authentication with email/password
+ * User authentication with email/password and social providers
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,20 +13,35 @@ import {
   Platform,
   ScrollView,
   Pressable,
+  ActivityIndicator,
 } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Ionicons } from '@expo/vector-icons';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { useAuthStore } from '../../stores/authStore';
 import { loginSchema, type LoginInput } from '@mentalspace/shared';
 import { Button } from '../../components/ui/Button';
 import { colors, spacing, borderRadius, typography } from '../../constants/theme';
+import { signInWithApple, isAppleSignInAvailable } from '../../services/socialAuth';
+import * as Haptics from '../../utils/haptics';
 
 export default function LoginScreen() {
   const router = useRouter();
   const { signIn, isLoading, error, clearError } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
+  const [appleSignInAvailable, setAppleSignInAvailable] = useState(false);
+  const [socialLoading, setSocialLoading] = useState<'apple' | 'google' | null>(null);
+
+  useEffect(() => {
+    checkAppleSignIn();
+  }, []);
+
+  const checkAppleSignIn = async () => {
+    const available = await isAppleSignInAvailable();
+    setAppleSignInAvailable(available);
+  };
 
   const {
     control,
@@ -50,6 +65,48 @@ export default function LoginScreen() {
     }
   };
 
+  const handleAppleSignIn = async () => {
+    try {
+      setSocialLoading('apple');
+      clearError();
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+      const { isNewUser } = await signInWithApple();
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+      // If new user, redirect to onboarding
+      if (isNewUser) {
+        router.replace('/(onboarding)/welcome');
+      }
+      // Otherwise, auth state listener will handle navigation
+    } catch (error: any) {
+      console.error('Apple Sign In error:', error);
+      // Don't show error if user cancelled
+      if (error.code !== 'ERR_REQUEST_CANCELED') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      }
+    } finally {
+      setSocialLoading(null);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      setSocialLoading('google');
+      clearError();
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+      // TODO: Implement Google Sign In when OAuth is configured
+      alert('Google Sign In requires OAuth configuration. Please use email or Apple Sign In for now.');
+    } catch (error) {
+      console.error('Google Sign In error:', error);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setSocialLoading(null);
+    }
+  };
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -64,10 +121,47 @@ export default function LoginScreen() {
           <View style={styles.logoContainer}>
             <Ionicons name="heart" size={48} color={colors.primary} />
           </View>
-          <Text style={styles.title}>Welcome Back</Text>
+          <Text style={styles.title}>Welcome to MentalSpace</Text>
           <Text style={styles.subtitle}>
             Sign in to continue your wellness journey
           </Text>
+        </View>
+
+        {/* Social Sign In Buttons */}
+        <View style={styles.socialContainer}>
+          {/* Apple Sign In - Only show on iOS when available */}
+          {appleSignInAvailable && (
+            <AppleAuthentication.AppleAuthenticationButton
+              buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+              buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+              cornerRadius={borderRadius.md}
+              style={styles.appleButton}
+              onPress={handleAppleSignIn}
+            />
+          )}
+
+          {/* Google Sign In */}
+          <Pressable
+            style={[styles.socialButton, styles.googleButton]}
+            onPress={handleGoogleSignIn}
+            disabled={socialLoading !== null}
+          >
+            {socialLoading === 'google' ? (
+              <ActivityIndicator color={colors.text} />
+            ) : (
+              <>
+                <Ionicons name="logo-google" size={20} color="#DB4437" />
+                <Text style={styles.googleButtonText}>Continue with Google</Text>
+              </>
+            )}
+          </Pressable>
+        </View>
+
+        {/* Divider */}
+        <View style={styles.divider}>
+          <View style={styles.dividerLine} />
+          <Text style={styles.dividerText}>or</Text>
+          <View style={styles.dividerLine} />
         </View>
 
         {/* Error Message */}
@@ -168,6 +262,14 @@ export default function LoginScreen() {
             </Pressable>
           </Link>
         </View>
+
+        {/* Terms */}
+        <Text style={styles.terms}>
+          By continuing, you agree to our{' '}
+          <Text style={styles.termsLink}>Terms of Service</Text>
+          {' '}and{' '}
+          <Text style={styles.termsLink}>Privacy Policy</Text>
+        </Text>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -201,11 +303,53 @@ const styles = StyleSheet.create({
     fontWeight: typography.fontWeight.bold,
     color: colors.text,
     marginBottom: spacing.xs,
+    textAlign: 'center',
   },
   subtitle: {
     fontSize: typography.fontSize.base,
     color: colors.textSecondary,
     textAlign: 'center',
+  },
+  socialContainer: {
+    gap: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  socialButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+  },
+  appleButton: {
+    height: 50,
+    width: '100%',
+  },
+  googleButton: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+  },
+  googleButtonText: {
+    color: colors.text,
+    fontSize: typography.fontSize.base,
+    fontWeight: typography.fontWeight.semibold,
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.border,
+  },
+  dividerText: {
+    paddingHorizontal: spacing.md,
+    color: colors.textSecondary,
+    fontSize: typography.fontSize.sm,
   },
   errorContainer: {
     flexDirection: 'row',
@@ -282,5 +426,15 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.sm,
     color: colors.primary,
     fontWeight: typography.fontWeight.semibold,
+  },
+  terms: {
+    fontSize: typography.fontSize.xs,
+    color: colors.textTertiary,
+    textAlign: 'center',
+    marginTop: spacing.lg,
+    lineHeight: 18,
+  },
+  termsLink: {
+    color: colors.primary,
   },
 });

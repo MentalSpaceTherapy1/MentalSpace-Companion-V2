@@ -237,7 +237,12 @@ export default function SummaryScreen() {
       </Card>
 
       {/* Insights */}
-      <Text style={styles.sectionTitle}>Insights</Text>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Insights</Text>
+        <Pressable onPress={() => router.push('/(insights)')}>
+          <Text style={styles.viewAllLink}>View All</Text>
+        </Pressable>
+      </View>
       <Card style={styles.insightsCard}>
         {mockWeeklySummary.insights.map((insight, index) => (
           <View key={index} style={styles.insightItem}>
@@ -397,11 +402,21 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.sm,
     fontWeight: typography.fontWeight.medium,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
   sectionTitle: {
     fontSize: typography.fontSize.lg,
     fontWeight: typography.fontWeight.semibold,
     color: colors.text,
-    marginBottom: spacing.md,
+  },
+  viewAllLink: {
+    fontSize: typography.fontSize.sm,
+    fontWeight: typography.fontWeight.medium,
+    color: colors.primary,
   },
   insightsCard: {
     marginBottom: spacing.lg,

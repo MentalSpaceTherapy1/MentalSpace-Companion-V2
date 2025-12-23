@@ -12,6 +12,7 @@ import {
   Animated,
   Dimensions,
   Pressable,
+  Platform,
 } from 'react-native';
 import { colors, spacing, borderRadius, typography } from '../../constants/theme';
 import * as Haptics from '../../utils/haptics';
@@ -106,6 +107,58 @@ export function MetricSlider({
 
   const intensityColor = getIntensityColor();
 
+  // Web-specific slider
+  if (Platform.OS === 'web') {
+    return (
+      <View style={styles.container}>
+        {/* Value Display */}
+        <View style={styles.valueContainer}>
+          <Text style={[styles.valueText, { color: intensityColor }]}>
+            {value}
+          </Text>
+          <Text style={styles.valueLabel}>out of {max}</Text>
+        </View>
+
+        {/* Web Slider */}
+        <View style={styles.webSliderContainer}>
+          <input
+            type="range"
+            min={min}
+            max={max}
+            value={value}
+            onChange={(e: any) => onChange(Number(e.target.value))}
+            style={{
+              width: '100%',
+              height: 40,
+              cursor: 'pointer',
+              accentColor: intensityColor,
+            }}
+          />
+        </View>
+
+        {/* Labels */}
+        <View style={styles.labelsContainer}>
+          <Text style={styles.label}>{lowLabel}</Text>
+          <Text style={styles.label}>{highLabel}</Text>
+        </View>
+
+        {/* Quick Select Buttons */}
+        <View style={styles.quickSelect}>
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((v) => (
+            <QuickButton
+              key={v}
+              value={v}
+              selected={value === v}
+              color={intensityColor}
+              onPress={() => onChange(v)}
+            />
+          ))}
+        </View>
+      </View>
+    );
+  }
+
+  // Native slider with PanResponder
   return (
     <View style={styles.container}>
       {/* Value Display */}
@@ -244,6 +297,9 @@ const styles = StyleSheet.create({
     height: THUMB_SIZE + spacing.lg,
     justifyContent: 'center',
   },
+  webSliderContainer: {
+    paddingVertical: spacing.md,
+  },
   track: {
     height: 8,
     backgroundColor: colors.border,
@@ -303,14 +359,16 @@ const styles = StyleSheet.create({
   },
   quickSelect: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: spacing.xs,
     marginTop: spacing.xl,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.sm,
   },
   quickButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: colors.surface,
