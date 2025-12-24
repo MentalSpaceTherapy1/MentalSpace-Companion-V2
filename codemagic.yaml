@@ -1,0 +1,72 @@
+workflows:
+  android-build:
+    name: Android Build
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      node: 20.18.0
+      java: 17
+      groups:
+        - expo # Optional: Add EXPO_TOKEN if you want to use EAS credentials
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+      cancel_previous_builds: true
+    scripts:
+      - name: Install dependencies
+        script: |
+          cd apps/mobile
+          npm install
+      - name: Set up local Android SDK
+        script: |
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > apps/mobile/android/local.properties || true
+      - name: Generate native projects
+        script: |
+          cd apps/mobile
+          npx expo prebuild --platform android --clean
+      - name: Build Android APK
+        script: |
+          cd apps/mobile/android
+          ./gradlew assembleRelease
+    artifacts:
+      - apps/mobile/android/app/build/outputs/**/*.apk
+    publishing:
+      email:
+        recipients:
+          - lelejoseli@gmail.com # Update with your email
+        notify:
+          success: true
+          failure: true
+
+  android-debug:
+    name: Android Debug Build
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      node: 20.18.0
+      java: 17
+    triggering:
+      events:
+        - pull_request
+      branch_patterns:
+        - pattern: '*'
+          include: true
+      cancel_previous_builds: true
+    scripts:
+      - name: Install dependencies
+        script: |
+          cd apps/mobile
+          npm install
+      - name: Generate native projects
+        script: |
+          cd apps/mobile
+          npx expo prebuild --platform android --clean
+      - name: Build Android Debug APK
+        script: |
+          cd apps/mobile/android
+          ./gradlew assembleDebug
+    artifacts:
+      - apps/mobile/android/app/build/outputs/**/*.apk
