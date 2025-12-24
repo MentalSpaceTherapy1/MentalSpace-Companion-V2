@@ -5,14 +5,7 @@
   },
   "build": {
     "base": {
-      "node": "20.18.0",
-      "env": {
-        "EXPO_USE_METRO_WORKSPACE_ROOT": "1"
-      },
-      "cache": {
-        "key": "shared-package-v1",
-        "paths": ["../../node_modules", "../../packages"]
-      }
+      "node": "20.18.0"
     },
     "development": {
       "extends": "base",
