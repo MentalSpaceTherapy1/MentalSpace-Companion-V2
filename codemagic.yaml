@@ -8,6 +8,13 @@ workflows:
       java: 17
       vars:
         EXPO_ROUTER_APP_ROOT: "app"
+        # Firebase Configuration - Required for app to connect
+        EXPO_PUBLIC_FIREBASE_API_KEY: "AIzaSyAVVtJ9rtP_T0qjJZhxGFGOZ0DgVXfMt8o"
+        EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: "mentalspace-companion.firebaseapp.com"
+        EXPO_PUBLIC_FIREBASE_PROJECT_ID: "mentalspace-companion"
+        EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET: "mentalspace-companion.firebasestorage.app"
+        EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "467539507170"
+        EXPO_PUBLIC_FIREBASE_APP_ID: "1:467539507170:web:32b01c8fb3cd1c70852bbb"
       groups:
         - expo # Optional: Add EXPO_TOKEN if you want to use EAS credentials
     triggering:
@@ -64,6 +71,13 @@ workflows:
       java: 17
       vars:
         EXPO_ROUTER_APP_ROOT: "app"
+        # Firebase Configuration - Required for app to connect
+        EXPO_PUBLIC_FIREBASE_API_KEY: "AIzaSyAVVtJ9rtP_T0qjJZhxGFGOZ0DgVXfMt8o"
+        EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: "mentalspace-companion.firebaseapp.com"
+        EXPO_PUBLIC_FIREBASE_PROJECT_ID: "mentalspace-companion"
+        EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET: "mentalspace-companion.firebasestorage.app"
+        EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "467539507170"
+        EXPO_PUBLIC_FIREBASE_APP_ID: "1:467539507170:web:32b01c8fb3cd1c70852bbb"
     triggering:
       events:
         - pull_request
