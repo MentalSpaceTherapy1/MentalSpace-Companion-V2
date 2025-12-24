@@ -1,6 +1,6 @@
 /**
  * Button Component
- * Reusable button with multiple variants
+ * Reusable button with multiple variants and accessibility support
  */
 
 import {
@@ -12,6 +12,7 @@ import {
   TextStyle,
 } from 'react-native';
 import { colors, spacing, borderRadius, typography } from '../../constants/theme';
+import { useAccessibilitySettings, getAccessibleButtonProps } from '../../utils/accessibility';
 
 interface ButtonProps {
   title: string;
@@ -23,6 +24,8 @@ interface ButtonProps {
   style?: ViewStyle;
   textStyle?: TextStyle;
   icon?: React.ReactNode;
+  accessibilityLabel?: string;
+  accessibilityHint?: string;
 }
 
 export function Button({
@@ -35,26 +38,42 @@ export function Button({
   style,
   textStyle,
   icon,
+  accessibilityLabel,
+  accessibilityHint,
 }: ButtonProps) {
   const isDisabled = disabled || loading;
+  const { theme, reduceMotion, highContrast } = useAccessibilitySettings();
+
+  // Get accessible colors
+  const buttonColors = highContrast ? theme.colors : colors;
+
+  // Get accessibility props
+  const a11yProps = getAccessibleButtonProps(
+    accessibilityLabel || title,
+    accessibilityHint,
+    'button'
+  );
 
   return (
     <Pressable
       style={({ pressed }) => [
         styles.button,
-        styles[variant],
-        styles[`size_${size}`],
+        getButtonStyle(variant, buttonColors),
+        getSizeStyle(size, theme),
         isDisabled && styles.disabled,
-        pressed && !isDisabled && styles.pressed,
+        pressed && !isDisabled && !reduceMotion && styles.pressed,
+        { minHeight: theme.minimumTouchTarget },
         style,
       ]}
       onPress={onPress}
       disabled={isDisabled}
+      {...a11yProps}
+      accessibilityState={{ disabled: isDisabled, busy: loading }}
     >
       {loading ? (
         <ActivityIndicator
           size="small"
-          color={variant === 'primary' ? colors.textInverse : colors.primary}
+          color={variant === 'primary' ? buttonColors.textInverse : buttonColors.primary}
         />
       ) : (
         <>
@@ -62,8 +81,8 @@ export function Button({
           <Text
             style={[
               styles.text,
-              styles[`text_${variant}`],
-              styles[`text_${size}`],
+              getTextStyle(variant, buttonColors),
+              getTextSizeStyle(size, theme),
               textStyle,
             ]}
           >
@@ -73,6 +92,71 @@ export function Button({
       )}
     </Pressable>
   );
+}
+
+// Helper functions for dynamic styles
+function getButtonStyle(variant: string, buttonColors: any) {
+  switch (variant) {
+    case 'primary':
+      return { backgroundColor: buttonColors.primary };
+    case 'secondary':
+      return { backgroundColor: buttonColors.surfaceSecondary };
+    case 'outline':
+      return {
+        backgroundColor: 'transparent',
+        borderWidth: 1,
+        borderColor: buttonColors.primary,
+      };
+    case 'ghost':
+      return { backgroundColor: 'transparent' };
+    default:
+      return { backgroundColor: buttonColors.primary };
+  }
+}
+
+function getTextStyle(variant: string, buttonColors: any) {
+  switch (variant) {
+    case 'primary':
+      return { color: buttonColors.textInverse };
+    case 'secondary':
+      return { color: buttonColors.text };
+    case 'outline':
+    case 'ghost':
+      return { color: buttonColors.primary };
+    default:
+      return { color: buttonColors.textInverse };
+  }
+}
+
+function getSizeStyle(size: string, theme: any) {
+  switch (size) {
+    case 'sm':
+      return {
+        paddingVertical: theme.spacing.sm,
+        paddingHorizontal: theme.spacing.md,
+      };
+    case 'lg':
+      return {
+        paddingVertical: theme.spacing.lg,
+        paddingHorizontal: theme.spacing.xl,
+      };
+    default:
+      return {
+        paddingVertical: theme.spacing.md,
+        paddingHorizontal: theme.spacing.lg,
+      };
+  }
+}
+
+function getTextSizeStyle(size: string, theme: any) {
+  switch (size) {
+    case 'sm':
+      return { fontSize: theme.fontSize.sm };
+    case 'lg':
+      return { fontSize: theme.fontSize.lg };
+    default:
+      return { fontSize: theme.fontSize.base };
+  }
 }
 
 const styles = StyleSheet.create({

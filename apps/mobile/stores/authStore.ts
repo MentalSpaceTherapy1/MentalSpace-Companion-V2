@@ -1,26 +1,21 @@
 /**
  * Auth Store
  * Zustand store for authentication state
+ * Uses Firebase compat library for better React Native support
  */
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {
-  User,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signOut as firebaseSignOut,
-  onAuthStateChanged,
-  updateProfile,
-} from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { auth, db } from '../services/firebase';
+import { auth, db, firebase } from '../services/firebase';
 import type { User as AppUser, UserPreferences, CarePreferences } from '@mentalspace/shared';
+
+// Firebase User type from compat library
+type FirebaseUser = firebase.User;
 
 interface AuthState {
   // State
-  user: User | null;
+  user: FirebaseUser | null;
   profile: AppUser | null;
   isLoading: boolean;
   isInitialized: boolean;
@@ -50,12 +45,12 @@ export const useAuthStore = create<AuthState>()(
 
       // Initialize auth listener
       initialize: () => {
-        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+        const unsubscribe = auth.onAuthStateChanged(async (user) => {
           if (user) {
             // Fetch user profile from Firestore
             try {
-              const profileDoc = await getDoc(doc(db, 'users', user.uid));
-              const profile = profileDoc.exists()
+              const profileDoc = await db.collection('users').doc(user.uid).get();
+              const profile = profileDoc.exists
                 ? ({ id: user.uid, ...profileDoc.data() } as AppUser)
                 : null;
 
@@ -92,16 +87,18 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true, error: null });
 
         try {
-          const { user } = await signInWithEmailAndPassword(auth, email, password);
+          const { user } = await auth.signInWithEmailAndPassword(email, password);
+          if (!user) throw new Error('No user returned from sign in');
 
           // Fetch profile
-          const profileDoc = await getDoc(doc(db, 'users', user.uid));
-          const profile = profileDoc.exists()
+          const profileDoc = await db.collection('users').doc(user.uid).get();
+          const profile = profileDoc.exists
             ? ({ id: user.uid, ...profileDoc.data() } as AppUser)
             : null;
 
           set({ user, profile, isLoading: false });
         } catch (error: any) {
+          console.error('Sign in error:', error.code, error.message, error);
           const errorMessage = getAuthErrorMessage(error.code);
           set({ error: errorMessage, isLoading: false });
           throw new Error(errorMessage);
@@ -113,10 +110,11 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true, error: null });
 
         try {
-          const { user } = await createUserWithEmailAndPassword(auth, email, password);
+          const { user } = await auth.createUserWithEmailAndPassword(email, password);
+          if (!user) throw new Error('No user returned from sign up');
 
           // Update Firebase Auth profile
-          await updateProfile(user, { displayName });
+          await user.updateProfile({ displayName });
 
           // Create Firestore user document
           const newProfile: Omit<AppUser, 'id'> = {
@@ -155,10 +153,10 @@ export const useAuthStore = create<AuthState>()(
             },
           };
 
-          await setDoc(doc(db, 'users', user.uid), {
+          await db.collection('users').doc(user.uid).set({
             ...newProfile,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
           });
 
           set({
@@ -178,7 +176,7 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true });
 
         try {
-          await firebaseSignOut(auth);
+          await auth.signOut();
           set({ user: null, profile: null, isLoading: false });
         } catch (error: any) {
           set({ error: error.message, isLoading: false });
@@ -192,9 +190,9 @@ export const useAuthStore = create<AuthState>()(
         if (!user || !profile) throw new Error('Not authenticated');
 
         try {
-          await updateDoc(doc(db, 'users', user.uid), {
+          await db.collection('users').doc(user.uid).update({
             ...updates,
-            updatedAt: serverTimestamp(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
           });
 
           set({
@@ -214,9 +212,9 @@ export const useAuthStore = create<AuthState>()(
         const updatedPreferences = { ...profile.preferences, ...preferences };
 
         try {
-          await updateDoc(doc(db, 'users', user.uid), {
+          await db.collection('users').doc(user.uid).update({
             preferences: updatedPreferences,
-            updatedAt: serverTimestamp(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
           });
 
           set({
@@ -238,10 +236,10 @@ export const useAuthStore = create<AuthState>()(
         if (!user || !profile) throw new Error('Not authenticated');
 
         try {
-          await updateDoc(doc(db, 'users', user.uid), {
+          await db.collection('users').doc(user.uid).update({
             carePreferences,
             carePreferencesCompleted: true,
-            updatedAt: serverTimestamp(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
           });
 
           set({
@@ -264,10 +262,10 @@ export const useAuthStore = create<AuthState>()(
         if (!user || !profile) throw new Error('Not authenticated');
 
         try {
-          await updateDoc(doc(db, 'users', user.uid), {
+          await db.collection('users').doc(user.uid).update({
             preferences,
             onboardingCompleted: true,
-            updatedAt: serverTimestamp(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
           });
 
           set({

@@ -138,7 +138,7 @@ export async function authenticateWithBiometrics(options?: {
     errorMessage = 'Authentication was cancelled by the system';
   } else if (result.error === 'lockout') {
     errorMessage = 'Too many failed attempts. Please try again later.';
-  } else if (result.error === 'lockout_permanent') {
+  } else if ((result.error as string) === 'lockout_permanent') {
     errorMessage = 'Biometric authentication is locked. Please use your device passcode.';
   }
 
@@ -178,7 +178,10 @@ export async function getBiometricUserId(): Promise<string | null> {
 /**
  * Enable biometric login for a user
  */
-export async function enableBiometricLogin(userId: string): Promise<boolean> {
+export async function enableBiometricLogin(userId: string): Promise<{
+  success: boolean;
+  error?: string;
+}> {
   try {
     // First verify they can authenticate
     const authResult = await authenticateWithBiometrics({
@@ -186,17 +189,17 @@ export async function enableBiometricLogin(userId: string): Promise<boolean> {
     });
 
     if (!authResult.success) {
-      return false;
+      return { success: false, error: authResult.error || 'Authentication failed' };
     }
 
     // Store the preference
     await SecureStore.setItemAsync(BIOMETRIC_ENABLED_KEY, 'true');
     await SecureStore.setItemAsync(BIOMETRIC_USER_ID_KEY, userId);
 
-    return true;
-  } catch (error) {
+    return { success: true };
+  } catch (error: any) {
     console.error('Failed to enable biometric login:', error);
-    return false;
+    return { success: false, error: error.message || 'Failed to enable biometric login' };
   }
 }
 
@@ -216,6 +219,14 @@ export async function disableBiometricLogin(): Promise<void> {
  * Perform biometric authentication for app unlock
  * Returns the stored user ID if successful
  */
+/**
+ * Alias for isBiometricAvailable - checks if biometric is supported
+ */
+export async function isBiometricSupported(): Promise<boolean> {
+  const result = await isBiometricAvailable();
+  return result.available;
+}
+
 export async function authenticateForAppUnlock(): Promise<{
   success: boolean;
   userId?: string;
@@ -257,3 +268,7 @@ export async function authenticateForAppUnlock(): Promise<{
     error: result.error,
   };
 }
+
+// Backward compatibility aliases
+export const getBiometricType = getBiometricTypeName;
+export const isBiometricEnabled = isBiometricLoginEnabled;

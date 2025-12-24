@@ -7,7 +7,6 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { doc, updateDoc } from 'firebase/firestore';
 import { db } from './firebase';
 
 // Storage keys
@@ -23,6 +22,7 @@ export const NOTIFICATION_CATEGORIES = {
   STREAK_CELEBRATION: 'streak_celebration',
   SESSION_REMINDER: 'session_reminder',
   RE_ENGAGEMENT: 're_engagement',
+  BUSY_DAY_HEADSUP: 'busy_day_headsup',
 } as const;
 
 export type NotificationCategory = typeof NOTIFICATION_CATEGORIES[keyof typeof NOTIFICATION_CATEGORIES];
@@ -61,14 +61,22 @@ export function configureNotifications() {
   // Notifications not supported on web
   if (Platform.OS === 'web') return;
 
-  // Set notification handler for foreground notifications
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldPlaySound: true,
-      shouldSetBadge: true,
-    }),
-  });
+  try {
+    // Set notification handler for foreground notifications
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
+      }),
+    });
+  } catch (error) {
+    // Push notifications may not be available in Expo Go SDK 53+
+    console.warn('Notifications not available:', error);
+    return;
+  }
 
   // Set up notification categories with actions
   if (Platform.OS === 'ios') {
@@ -175,7 +183,7 @@ export async function registerPushToken(userId: string): Promise<void> {
   if (!token) return;
 
   try {
-    await updateDoc(doc(db, 'users', userId), {
+    await db.collection('users').doc(userId).update({
       pushToken: token,
       pushTokenUpdatedAt: new Date(),
       devicePlatform: Platform.OS,
@@ -218,10 +226,11 @@ export async function scheduleDailyCheckinReminder(time: string): Promise<string
   const identifier = await Notifications.scheduleNotificationAsync({
     content,
     trigger: {
+      type: 'daily',
       hour: hours,
       minute: minutes,
-      repeats: true,
-    },
+      channelId: 'reminders',
+    } as Notifications.DailyTriggerInput,
   });
 
   return identifier;
@@ -259,10 +268,11 @@ export async function scheduleGentleNudge(checkinTime: string): Promise<string |
   const identifier = await Notifications.scheduleNotificationAsync({
     content,
     trigger: {
+      type: 'daily',
       hour: nudgeHours,
       minute: minutes,
-      repeats: true,
-    },
+      channelId: 'reminders',
+    } as Notifications.DailyTriggerInput,
   });
 
   return identifier;
@@ -298,7 +308,11 @@ export async function scheduleActionReminder(
 
   const identifier = await Notifications.scheduleNotificationAsync({
     content,
-    trigger: scheduledTime,
+    trigger: {
+      type: 'date',
+      date: scheduledTime,
+      channelId: 'reminders',
+    } as Notifications.DateTriggerInput,
   });
 
   return identifier;
@@ -333,11 +347,12 @@ export async function scheduleWeeklySummary(): Promise<string | null> {
   const identifier = await Notifications.scheduleNotificationAsync({
     content,
     trigger: {
+      type: 'weekly',
       weekday: 1, // Sunday
       hour: 19,
       minute: 0,
-      repeats: true,
-    },
+      channelId: 'default',
+    } as Notifications.WeeklyTriggerInput,
   });
 
   return identifier;
@@ -415,7 +430,11 @@ export async function scheduleSessionReminder(
         body: `Your session with ${therapistName} is tomorrow.`,
         data: { type: NOTIFICATION_CATEGORIES.SESSION_REMINDER, sessionId },
       },
-      trigger: dayBefore,
+      trigger: {
+        type: 'date',
+        date: dayBefore,
+        channelId: 'default',
+      } as Notifications.DateTriggerInput,
     });
     identifiers.push(id1);
   }
@@ -429,12 +448,83 @@ export async function scheduleSessionReminder(
         body: `Your session with ${therapistName} starts in 1 hour.`,
         data: { type: NOTIFICATION_CATEGORIES.SESSION_REMINDER, sessionId },
       },
-      trigger: hourBefore,
+      trigger: {
+        type: 'date',
+        date: hourBefore,
+        channelId: 'default',
+      } as Notifications.DateTriggerInput,
     });
     identifiers.push(id2);
   }
 
   return identifiers;
+}
+
+/**
+ * Schedule busy day heads-up notification
+ * Checks tomorrow's calendar at 8pm and sends notification if busy
+ */
+export async function scheduleBusyDayHeadsUp(): Promise<string | null> {
+  // Not available on web
+  if (Platform.OS === 'web') return null;
+
+  const prefs = await getNotificationPreferences();
+
+  // Cancel existing busy day notifications
+  await cancelNotificationsByCategory(NOTIFICATION_CATEGORIES.BUSY_DAY_HEADSUP);
+
+  const content: Notifications.NotificationContentInput = prefs.privacyMode
+    ? {
+        title: 'MentalSpace',
+        body: 'Tap to open',
+        data: { type: NOTIFICATION_CATEGORIES.BUSY_DAY_HEADSUP },
+      }
+    : {
+        title: 'Busy day ahead',
+        body: "We've prepared a lighter plan for tomorrow",
+        data: { type: NOTIFICATION_CATEGORIES.BUSY_DAY_HEADSUP },
+      };
+
+  // Schedule for 8pm daily
+  const identifier = await Notifications.scheduleNotificationAsync({
+    content,
+    trigger: {
+      type: 'calendar',
+      hour: 20,
+      minute: 0,
+      repeats: true,
+    } as Notifications.CalendarTriggerInput,
+  });
+
+  return identifier;
+}
+
+/**
+ * Send immediate busy day notification
+ * Called when calendar integration detects a busy day
+ */
+export async function sendBusyDayNotification(eventCount: number): Promise<void> {
+  // Not available on web
+  if (Platform.OS === 'web') return;
+
+  const prefs = await getNotificationPreferences();
+
+  const content: Notifications.NotificationContentInput = prefs.privacyMode
+    ? {
+        title: 'MentalSpace',
+        body: 'Tap to open',
+        data: { type: NOTIFICATION_CATEGORIES.BUSY_DAY_HEADSUP },
+      }
+    : {
+        title: 'Busy day ahead',
+        body: `You have ${eventCount} meeting${eventCount !== 1 ? 's' : ''} tomorrow. We've prepared a lighter plan.`,
+        data: { type: NOTIFICATION_CATEGORIES.BUSY_DAY_HEADSUP },
+      };
+
+  await Notifications.scheduleNotificationAsync({
+    content,
+    trigger: null, // Immediate
+  });
 }
 
 // ========================================

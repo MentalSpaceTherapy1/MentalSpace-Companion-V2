@@ -15,27 +15,31 @@ import {
 } from 'react-native';
 import { useRouter, useSegments } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, borderRadius, typography, shadows } from '../constants/theme';
 import * as Haptics from '../utils/haptics';
 
 export function FloatingTelehealthButton() {
   const router = useRouter();
   const segments = useSegments();
+  const insets = useSafeAreaInsets();
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   // Determine if we should show the button based on current route
   const shouldShow = () => {
+    // Cast segments to string array for safe access
+    const routeSegments = segments as string[];
     // Don't show on auth or onboarding screens
-    if (segments[0] === '(auth)' || segments[0] === '(onboarding)') {
+    if (routeSegments[0] === '(auth)' || routeSegments[0] === '(onboarding)') {
       return false;
     }
     // Don't show on telehealth screens (already there)
-    if (segments[0] === '(telehealth)') {
+    if (routeSegments[0] === '(telehealth)') {
       return false;
     }
     // Don't show on the telehealth tab specifically
-    if (segments[0] === '(tabs)' && segments[1] === 'telehealth') {
+    if (routeSegments[0] === '(tabs)' && routeSegments[1] === 'telehealth') {
       return false;
     }
     return true;
@@ -85,8 +89,13 @@ export function FloatingTelehealthButton() {
     return null;
   }
 
+  // Calculate bottom position based on safe area and tab bar height
+  const bottomPadding = Math.max(insets.bottom, Platform.OS === 'ios' ? 20 : 16);
+  const tabBarHeight = 56 + bottomPadding;
+  const buttonBottom = tabBarHeight + 16; // 16px above tab bar
+
   return (
-    <View style={styles.container} pointerEvents="box-none">
+    <View style={[styles.container, { bottom: buttonBottom }]} pointerEvents="box-none">
       <Pressable onPress={handlePress} style={styles.buttonWrapper}>
         <Animated.View
           style={[
@@ -112,7 +121,7 @@ const styles = StyleSheet.create({
   container: {
     position: 'absolute',
     left: spacing.lg,
-    bottom: Platform.OS === 'ios' ? 100 : 80,
+    // bottom is set dynamically based on safe area
     zIndex: 999,
   },
   buttonWrapper: {

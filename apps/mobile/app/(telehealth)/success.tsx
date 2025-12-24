@@ -3,23 +3,58 @@
  * Confirmation page shown after submitting a telehealth appointment request
  */
 
+import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { colors, spacing, typography, borderRadius } from '../../constants/theme';
+import { useSessionStore } from '../../stores/sessionStore';
 
 export default function TelehealthSuccessScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
+  const sessionId = params.sessionId as string | undefined;
+  const [showReflectionPrompt, setShowReflectionPrompt] = useState(false);
+
+  const { getSessionById } = useSessionStore();
+
+  useEffect(() => {
+    // If a sessionId is provided, check if session time has passed and prompt for reflection
+    if (sessionId) {
+      const session = getSessionById(sessionId);
+      if (session && session.status === 'completed') {
+        const sessionEndTime = new Date(session.sessionDate).getTime() + session.duration * 60000;
+        const now = Date.now();
+
+        if (now >= sessionEndTime) {
+          setShowReflectionPrompt(true);
+        } else {
+          // Set a timer to show reflection prompt after session ends
+          const timeUntilEnd = sessionEndTime - now;
+          const timer = setTimeout(() => {
+            setShowReflectionPrompt(true);
+          }, timeUntilEnd);
+
+          return () => clearTimeout(timer);
+        }
+      }
+    }
+  }, [sessionId]);
 
   const handleGoHome = () => {
     router.replace('/(tabs)');
   };
 
-  const handleViewRequests = () => {
-    // For now, go back to home - future: dedicated requests screen
-    router.replace('/(tabs)');
+  const handleAddReflection = () => {
+    if (sessionId) {
+      router.replace(`/(telehealth)/reflection?sessionId=${sessionId}`);
+    }
+  };
+
+  const handleViewHistory = () => {
+    router.replace('/(telehealth)/history');
   };
 
   return (
@@ -117,6 +152,29 @@ export default function TelehealthSuccessScreen() {
         </Text>
       </View>
 
+      {/* Reflection Prompt (shown after session completion) */}
+      {showReflectionPrompt && sessionId && (
+        <Card style={styles.reflectionPromptCard}>
+          <View style={styles.reflectionPromptHeader}>
+            <Ionicons name="create" size={32} color={colors.primary} />
+            <Text style={styles.reflectionPromptTitle}>Session Complete!</Text>
+          </View>
+          <Text style={styles.reflectionPromptText}>
+            Take a moment to reflect on your session. Capture key insights and any homework from your therapist.
+          </Text>
+          <Button
+            title="Add Session Reflection"
+            onPress={handleAddReflection}
+            style={styles.reflectionButton}
+          />
+          <Button
+            title="Skip for Now"
+            variant="ghost"
+            onPress={handleGoHome}
+          />
+        </Card>
+      )}
+
       {/* Actions */}
       <View style={styles.actions}>
         <Button
@@ -124,11 +182,19 @@ export default function TelehealthSuccessScreen() {
           onPress={handleGoHome}
           style={styles.primaryButton}
         />
-        <Button
-          title="Submit Another Request"
-          variant="outline"
-          onPress={() => router.replace('/(telehealth)')}
-        />
+        {sessionId ? (
+          <Button
+            title="View Session History"
+            variant="outline"
+            onPress={handleViewHistory}
+          />
+        ) : (
+          <Button
+            title="Submit Another Request"
+            variant="outline"
+            onPress={() => router.replace('/(telehealth)')}
+          />
+        )}
       </View>
     </ScrollView>
   );
@@ -282,5 +348,31 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     marginBottom: spacing.xs,
+  },
+  reflectionPromptCard: {
+    marginBottom: spacing.xl,
+    backgroundColor: colors.primary + '08',
+    borderWidth: 2,
+    borderColor: colors.primary + '30',
+  },
+  reflectionPromptHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginBottom: spacing.md,
+  },
+  reflectionPromptTitle: {
+    fontSize: typography.fontSize.xl,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.primary,
+  },
+  reflectionPromptText: {
+    fontSize: typography.fontSize.base,
+    color: colors.text,
+    lineHeight: 22,
+    marginBottom: spacing.lg,
+  },
+  reflectionButton: {
+    marginBottom: spacing.sm,
   },
 });

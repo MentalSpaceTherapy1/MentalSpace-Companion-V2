@@ -12,6 +12,7 @@ export interface User {
   email: string;
   displayName: string;
   avatarUrl?: string;
+  photoURL?: string; // Firebase Auth photoURL (alternative to avatarUrl)
   createdAt: Date;
   updatedAt: Date;
   preferences: UserPreferences;
@@ -19,6 +20,7 @@ export interface User {
   onboardingCompleted: boolean;
   carePreferencesCompleted: boolean;
   timezone: string;
+  authProvider?: 'email' | 'google' | 'apple'; // OAuth provider used for authentication
 }
 
 export interface UserPreferences {
@@ -287,6 +289,9 @@ export interface Checkin {
   journalEntry?: string;
   voiceNoteUrl?: string;
 
+  // Photo mood board
+  photoUri?: string;
+
   // Context tags (optional)
   contextTags?: ContextTag[];
 
@@ -360,7 +365,7 @@ export interface PlannedAction {
   swappedFrom?: string;
 }
 
-export type ActionCategory = 'coping' | 'lifestyle' | 'connection';
+export type ActionCategory = 'coping' | 'lifestyle' | 'connection' | 'therapist-homework';
 
 export interface ActionTemplate {
   id: string;

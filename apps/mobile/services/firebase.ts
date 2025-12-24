@@ -1,20 +1,14 @@
 /**
  * Firebase Configuration
  * Initialize Firebase for React Native / Web
+ *
+ * Uses compat library throughout to avoid "Component auth has not been registered" error
  */
 
-import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import {
-  initializeAuth,
-  getAuth,
-  Auth,
-  browserLocalPersistence,
-  indexedDBLocalPersistence,
-} from 'firebase/auth';
-import { getFirestore, Firestore } from 'firebase/firestore';
-import { getStorage, FirebaseStorage } from 'firebase/storage';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
+import firebase from 'firebase/compat/app';
+import 'firebase/compat/auth';
+import 'firebase/compat/firestore';
+import 'firebase/compat/storage';
 
 // Firebase configuration from environment variables
 const firebaseConfig = {
@@ -26,36 +20,23 @@ const firebaseConfig = {
   appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Initialize Firebase (only once)
-const app: FirebaseApp = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-
-// Initialize Auth with platform-specific persistence
-let auth: Auth;
-
-if (Platform.OS === 'web') {
-  // For web, use browser persistence
-  auth = initializeAuth(app, {
-    persistence: [indexedDBLocalPersistence, browserLocalPersistence],
-  });
-} else {
-  // For React Native, use AsyncStorage persistence
-  // Note: getReactNativePersistence is available in firebase/auth/react-native
-  try {
-    // Dynamic import for React Native persistence
-    const { getReactNativePersistence } = require('firebase/auth');
-    auth = initializeAuth(app, {
-      persistence: getReactNativePersistence(AsyncStorage),
-    });
-  } catch {
-    // Fallback to basic auth if persistence fails
-    auth = getAuth(app);
-  }
+// Initialize Firebase App (only once)
+if (firebase.apps.length === 0) {
+  firebase.initializeApp(firebaseConfig);
 }
 
-// Initialize Firestore
-const db: Firestore = getFirestore(app);
+// Get Firebase services (all compat)
+const app = firebase.app();
+const auth = firebase.auth();
+const db = firebase.firestore();
+const storage = firebase.storage();
 
-// Initialize Storage
-const storage: FirebaseStorage = getStorage(app);
+// Set persistence for React Native
+auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
 
-export { app, auth, db, storage };
+// Export async getter for compatibility
+export async function getFirebaseAuth() {
+  return auth;
+}
+
+export { app, auth, db, storage, firebase };

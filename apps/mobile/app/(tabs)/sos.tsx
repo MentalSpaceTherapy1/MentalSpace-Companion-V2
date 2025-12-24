@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from '../../utils/haptics';
 import { colors, spacing, borderRadius, typography, shadows } from '../../constants/theme';
 import type { SOSProtocolType } from '@mentalspace/shared';
+import { trackSOSTriggered, trackEvent } from '../../services/analytics';
 
 // SOS Protocol options
 const SOS_PROTOCOLS: Array<{
@@ -80,6 +81,12 @@ export default function SOSTabScreen() {
 
   const handleProtocolSelect = (protocolId: SOSProtocolType) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    // Track SOS trigger
+    trackSOSTriggered({
+      protocol_type: protocolId,
+    });
+
     router.push({
       pathname: '/(sos)/protocol',
       params: { type: protocolId },
@@ -88,6 +95,13 @@ export default function SOSTabScreen() {
 
   const handleCrisisCall = (phone: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+
+    // Track crisis resource access
+    trackEvent('crisis_resource_accessed', {
+      resource_type: 'phone',
+      phone_number: phone,
+    });
+
     // This will open the phone dialer
     router.push({
       pathname: '/(sos)/resources',

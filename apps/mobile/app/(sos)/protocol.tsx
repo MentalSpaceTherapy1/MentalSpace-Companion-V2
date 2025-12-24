@@ -38,7 +38,7 @@ export default function ProtocolScreen() {
 
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
-  const breathingCycleRef = useRef<NodeJS.Timeout | null>(null);
+  const breathingCycleRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const currentStep = steps[currentStepIndex];
   const progress = ((currentStepIndex + 1) / steps.length) * 100;

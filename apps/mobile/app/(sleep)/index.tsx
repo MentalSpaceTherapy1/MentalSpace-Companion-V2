@@ -268,7 +268,7 @@ export default function SleepTrackerScreen() {
         <Button
           title="View Tips"
           variant="outline"
-          size="small"
+          size="sm"
           onPress={() => router.push('/(sleep)/tips')}
         />
       </Card>

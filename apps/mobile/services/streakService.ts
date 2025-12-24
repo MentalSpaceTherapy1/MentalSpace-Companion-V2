@@ -4,14 +4,6 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {
-  collection,
-  getDocs,
-  query,
-  where,
-  orderBy,
-  limit,
-} from 'firebase/firestore';
 import { db } from './firebase';
 import { sendStreakCelebration } from './notifications';
 
@@ -120,14 +112,14 @@ function calculateLongestStreak(sortedDates: string[]): number {
  */
 export async function calculateStreak(userId: string): Promise<StreakData> {
   try {
-    // Fetch all check-in dates for the user
-    const checkinsRef = collection(db, 'users', userId, 'checkins');
-    const q = query(
-      checkinsRef,
-      orderBy('date', 'desc'),
-      limit(365) // Look back up to a year
-    );
-    const snapshot = await getDocs(q);
+    // Fetch all check-in dates for the user (using compat API)
+    const snapshot = await db
+      .collection('users')
+      .doc(userId)
+      .collection('checkins')
+      .orderBy('date', 'desc')
+      .limit(365) // Look back up to a year
+      .get();
 
     const dates = snapshot.docs.map((doc) => doc.data().date as string);
     const uniqueDates = [...new Set(dates)].sort((a, b) => b.localeCompare(a));

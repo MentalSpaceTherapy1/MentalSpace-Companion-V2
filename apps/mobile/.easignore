@@ -1,0 +1,29 @@
+# EAS Ignore file
+# Note: By default, EAS Build uploads from the project root for monorepos
+
+# Build artifacts
+.gradle/
+build/
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test files
+__tests__/
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+jest.config.js
+jest.setup.js
+
+# Development files
+*.md
+!README.md

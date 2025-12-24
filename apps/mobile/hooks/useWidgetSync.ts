@@ -22,7 +22,7 @@ export function useWidgetSync(options: UseWidgetSyncOptions = {}) {
   const lastSyncRef = useRef<string | null>(null);
 
   const { user } = useAuthStore();
-  const { todayCheckin, weekCheckins } = useCheckinStore();
+  const { todayCheckin, recentCheckins } = useCheckinStore();
   const { streak } = useStreakStore();
 
   // Initialize widget data on mount
@@ -34,7 +34,7 @@ export function useWidgetSync(options: UseWidgetSyncOptions = {}) {
         const hasCheckedIn = !!todayCheckin;
         const currentStreak = streak?.currentStreak ?? 0;
         const lastMood = todayCheckin?.mood ?? null;
-        const weeklyMoods = (weekCheckins || [])
+        const weeklyMoods = (recentCheckins || [])
           .map((c) => c.mood)
           .filter((m): m is number => m !== undefined);
 
@@ -58,7 +58,7 @@ export function useWidgetSync(options: UseWidgetSyncOptions = {}) {
 
     const sync = async () => {
       try {
-        const weeklyMoods = (weekCheckins || [])
+        const weeklyMoods = (recentCheckins || [])
           .map((c) => c.mood)
           .filter((m): m is number => m !== undefined);
 
@@ -73,7 +73,7 @@ export function useWidgetSync(options: UseWidgetSyncOptions = {}) {
     };
 
     sync();
-  }, [enabled, user, todayCheckin, weekCheckins, streak]);
+  }, [enabled, user, todayCheckin, recentCheckins, streak]);
 
   // Clear widget data on sign out
   useEffect(() => {

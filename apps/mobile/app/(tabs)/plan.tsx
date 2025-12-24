@@ -24,7 +24,7 @@ import { colors, spacing, borderRadius, typography, shadows } from '../../consta
 import { CATEGORY_LABELS, CATEGORY_COLORS, CATEGORY_ICONS } from '@mentalspace/shared';
 import { usePlanStore, PlannedAction, DailyPlan } from '../../stores/planStore';
 
-type ActionCategory = 'coping' | 'lifestyle' | 'connection';
+type ActionCategory = 'coping' | 'lifestyle' | 'connection' | 'therapist-homework';
 
 // Alternative actions for swapping - organized by category
 const alternativeActions: Record<ActionCategory, PlannedAction[]> = {
@@ -115,6 +115,7 @@ const alternativeActions: Record<ActionCategory, PlannedAction[]> = {
       skipped: false,
     },
   ],
+  'therapist-homework': [], // Therapist homework cannot be swapped
 };
 
 // Mock data for now - would come from store

@@ -5,20 +5,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
-import {
-  collection,
-  doc,
-  addDoc,
-  updateDoc,
-  getDocs,
-  query,
-  where,
-  orderBy,
-  limit,
-  serverTimestamp,
-  Timestamp,
-} from 'firebase/firestore';
-import { db } from './firebase';
+import { db, firebase } from './firebase';
 import type { Checkin, DailyPlan, SOSSession, WeeklyFocus } from '@mentalspace/shared';
 
 // Storage keys
@@ -171,12 +158,15 @@ export async function createCheckinOffline(
 
   if (isOnline) {
     try {
-      // Try to save to Firebase
-      const checkinsRef = collection(db, 'users', userId, 'checkins');
-      const docRef = await addDoc(checkinsRef, {
-        ...checkinData,
-        createdAt: serverTimestamp(),
-      });
+      // Try to save to Firebase (using compat API)
+      const docRef = await db
+        .collection('users')
+        .doc(userId)
+        .collection('checkins')
+        .add({
+          ...checkinData,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        });
 
       // Update local cache with real ID
       const savedCheckin = { ...checkin, id: docRef.id };
@@ -268,12 +258,16 @@ export async function updateActionCompletionOffline(
 
   if (isOnline) {
     try {
-      const planRef = doc(db, 'users', userId, 'plans', planId);
-      await updateDoc(planRef, {
-        [`actions.${actionId}.completed`]: completed,
-        [`actions.${actionId}.completedAt`]: completed ? serverTimestamp() : null,
-        updatedAt: serverTimestamp(),
-      });
+      await db
+        .collection('users')
+        .doc(userId)
+        .collection('plans')
+        .doc(planId)
+        .update({
+          [`actions.${actionId}.completed`]: completed,
+          [`actions.${actionId}.completedAt`]: completed ? firebase.firestore.FieldValue.serverTimestamp() : null,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        });
     } catch (error) {
       console.error('Failed to update action online, queuing for sync:', error);
       await addToSyncQueue({
@@ -341,12 +335,15 @@ export async function saveSOSSessionOffline(userId: string, session: SOSSession)
 
   if (isOnline) {
     try {
-      const sessionsRef = collection(db, 'users', userId, 'sos_sessions');
-      await addDoc(sessionsRef, {
-        ...session,
-        startedAt: Timestamp.fromDate(session.startedAt),
-        completedAt: session.completedAt ? Timestamp.fromDate(session.completedAt) : null,
-      });
+      await db
+        .collection('users')
+        .doc(userId)
+        .collection('sos_sessions')
+        .add({
+          ...session,
+          startedAt: firebase.firestore.Timestamp.fromDate(session.startedAt),
+          completedAt: session.completedAt ? firebase.firestore.Timestamp.fromDate(session.completedAt) : null,
+        });
     } catch (error) {
       console.error('Failed to save SOS session online, queuing for sync:', error);
       await addToSyncQueue({
@@ -483,20 +480,31 @@ export async function syncPendingOperations(): Promise<{
     for (const item of queue) {
       try {
         if (item.operation === 'create') {
-          // Create document
-          const collectionRef = collection(db, ...item.collection.split('/'));
-          await addDoc(collectionRef, {
+          // Create document (using compat API)
+          const pathParts = item.collection.split('/');
+          let ref: firebase.firestore.CollectionReference = db.collection(pathParts[0]);
+          for (let i = 1; i < pathParts.length; i++) {
+            if (i % 2 === 1) {
+              ref = (ref as any).doc(pathParts[i]).collection(pathParts[i + 1] || '');
+              i++;
+            }
+          }
+          await ref.add({
             ...item.data,
-            createdAt: serverTimestamp(),
-            _syncedAt: serverTimestamp(),
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            _syncedAt: firebase.firestore.FieldValue.serverTimestamp(),
           });
         } else if (item.operation === 'update') {
-          // Update document
-          const docRef = doc(db, item.collection);
-          await updateDoc(docRef, {
+          // Update document (using compat API)
+          const pathParts = item.collection.split('/');
+          let docRef: firebase.firestore.DocumentReference = db.collection(pathParts[0]).doc(pathParts[1]);
+          for (let i = 2; i < pathParts.length; i += 2) {
+            docRef = (docRef as any).collection(pathParts[i]).doc(pathParts[i + 1]);
+          }
+          await docRef.update({
             ...item.data,
-            updatedAt: serverTimestamp(),
-            _syncedAt: serverTimestamp(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            _syncedAt: firebase.firestore.FieldValue.serverTimestamp(),
           });
         }
 
@@ -617,38 +625,38 @@ export async function performFullSync(userId: string): Promise<void> {
     // Sync pending operations first
     await syncPendingOperations();
 
-    // Fetch and cache checkins (last 30 days)
-    const checkinsRef = collection(db, 'users', userId, 'checkins');
+    // Fetch and cache checkins (last 30 days) using compat API
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const dateStr = thirtyDaysAgo.toISOString().split('T')[0];
 
-    const checkinsQuery = query(
-      checkinsRef,
-      where('date', '>=', dateStr),
-      orderBy('date', 'desc'),
-      limit(30)
-    );
-    const checkinsSnapshot = await getDocs(checkinsQuery);
+    const checkinsSnapshot = await db
+      .collection('users')
+      .doc(userId)
+      .collection('checkins')
+      .where('date', '>=', dateStr)
+      .orderBy('date', 'desc')
+      .limit(30)
+      .get();
     const checkins = checkinsSnapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
     })) as Checkin[];
     await cacheCheckins(userId, checkins);
 
-    // Fetch and cache plans (last 7 days)
-    const plansRef = collection(db, 'users', userId, 'plans');
+    // Fetch and cache plans (last 7 days) using compat API
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     const planDateStr = sevenDaysAgo.toISOString().split('T')[0];
 
-    const plansQuery = query(
-      plansRef,
-      where('date', '>=', planDateStr),
-      orderBy('date', 'desc'),
-      limit(7)
-    );
-    const plansSnapshot = await getDocs(plansQuery);
+    const plansSnapshot = await db
+      .collection('users')
+      .doc(userId)
+      .collection('plans')
+      .where('date', '>=', planDateStr)
+      .orderBy('date', 'desc')
+      .limit(7)
+      .get();
     const plans = plansSnapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),

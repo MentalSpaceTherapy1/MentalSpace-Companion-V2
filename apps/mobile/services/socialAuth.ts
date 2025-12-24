@@ -6,14 +6,7 @@
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Crypto from 'expo-crypto';
 import * as WebBrowser from 'expo-web-browser';
-import {
-  GoogleAuthProvider,
-  OAuthProvider,
-  signInWithCredential,
-  linkWithCredential,
-} from 'firebase/auth';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { auth, db } from './firebase';
+import { auth, db, firebase } from './firebase';
 import { Platform } from 'react-native';
 import type { User as AppUser } from '@mentalspace/shared';
 
@@ -71,18 +64,21 @@ export async function signInWithApple(): Promise<{ isNewUser: boolean }> {
     throw new Error('No identity token received from Apple');
   }
 
-  // Create Firebase credential
-  const oAuthCredential = new OAuthProvider('apple.com').credential({
+  // Create Firebase credential (using compat API)
+  const provider = new firebase.auth.OAuthProvider('apple.com');
+  const oAuthCredential = provider.credential({
     idToken: credential.identityToken,
     rawNonce: nonce,
   });
 
   // Sign in to Firebase
-  const { user } = await signInWithCredential(auth, oAuthCredential);
+  const userCredential = await auth.signInWithCredential(oAuthCredential);
+  const user = userCredential.user;
+  if (!user) throw new Error('No user returned from sign in');
 
   // Check if user profile exists
-  const profileDoc = await getDoc(doc(db, 'users', user.uid));
-  const isNewUser = !profileDoc.exists();
+  const profileDoc = await db.collection('users').doc(user.uid).get();
+  const isNewUser = !profileDoc.exists;
 
   if (isNewUser) {
     // Create new user profile
@@ -128,10 +124,10 @@ export async function signInWithApple(): Promise<{ isNewUser: boolean }> {
       },
     };
 
-    await setDoc(doc(db, 'users', user.uid), {
+    await db.collection('users').doc(user.uid).set({
       ...newProfile,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
   }
 
@@ -169,15 +165,17 @@ export async function signInWithGoogle(): Promise<{ isNewUser: boolean }> {
  * Call this after getting the token from expo-auth-session
  */
 export async function completeGoogleSignIn(idToken: string): Promise<{ isNewUser: boolean }> {
-  // Create Firebase credential
-  const credential = GoogleAuthProvider.credential(idToken);
+  // Create Firebase credential (using compat API)
+  const credential = firebase.auth.GoogleAuthProvider.credential(idToken);
 
   // Sign in to Firebase
-  const { user } = await signInWithCredential(auth, credential);
+  const userCredential = await auth.signInWithCredential(credential);
+  const user = userCredential.user;
+  if (!user) throw new Error('No user returned from sign in');
 
   // Check if user profile exists
-  const profileDoc = await getDoc(doc(db, 'users', user.uid));
-  const isNewUser = !profileDoc.exists();
+  const profileDoc = await db.collection('users').doc(user.uid).get();
+  const isNewUser = !profileDoc.exists;
 
   if (isNewUser) {
     // Create new user profile
@@ -219,10 +217,10 @@ export async function completeGoogleSignIn(idToken: string): Promise<{ isNewUser
       },
     };
 
-    await setDoc(doc(db, 'users', user.uid), {
+    await db.collection('users').doc(user.uid).set({
       ...newProfile,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
   }
 

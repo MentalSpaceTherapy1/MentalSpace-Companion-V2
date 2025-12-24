@@ -15,11 +15,14 @@ import {
   Dimensions,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from '../../utils/haptics';
 import { useCheckinStore } from '../../stores/checkinStore';
+import { useHealthStore, getLatestSleepForCheckin } from '../../stores/healthStore';
+import { convertDurationToQuality } from '../../services/healthIntegration';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { MetricSlider } from '../../components/forms/MetricSlider';
@@ -28,6 +31,7 @@ import { detectCrisis, getCrisisResponse } from '../../utils/crisisDetection';
 import { colors, spacing, borderRadius, typography } from '../../constants/theme';
 import { METRICS, METRIC_ORDER, JOURNAL_MAX_LENGTH } from '@mentalspace/shared';
 import type { CrisisSeverity } from '@mentalspace/shared';
+import { pickImage, takePhoto, savePhotoLocally } from '../../services/photoService';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -40,6 +44,7 @@ const STEPS = [
   { key: 'focus', title: 'Focus', subtitle: 'How clear is your mind?' },
   { key: 'anxiety', title: 'Anxiety', subtitle: 'How anxious are you feeling?' },
   { key: 'journal', title: 'Journal', subtitle: 'Anything on your mind?' },
+  { key: 'photo', title: 'Add a Photo', subtitle: 'What does today look like?' },
   { key: 'review', title: 'Review', subtitle: 'Check your responses' },
 ];
 
@@ -48,8 +53,10 @@ type MetricKey = 'mood' | 'stress' | 'sleep' | 'energy' | 'focus' | 'anxiety';
 export default function CheckinScreen() {
   const router = useRouter();
   const { draft, updateDraft, createCheckin, todayCheckin, isLoading } = useCheckinStore();
+  const { isConnected, permissions } = useHealthStore();
   const [currentStep, setCurrentStep] = useState(0);
   const slideAnim = useRef(new Animated.Value(0)).current;
+  const [healthDataLoaded, setHealthDataLoaded] = useState(false);
 
   // Crisis detection state
   const [showCrisisModal, setShowCrisisModal] = useState(false);
@@ -59,10 +66,11 @@ export default function CheckinScreen() {
   const currentStepConfig = STEPS[currentStep];
   const isLastStep = currentStep === STEPS.length - 1;
   const isJournalStep = currentStepConfig.key === 'journal';
+  const isPhotoStep = currentStepConfig.key === 'photo';
   const isReviewStep = currentStepConfig.key === 'review';
 
   const canProceed = () => {
-    if (isJournalStep || isReviewStep) return true;
+    if (isJournalStep || isPhotoStep || isReviewStep) return true;
     const value = draft[currentStepConfig.key as MetricKey];
     return value !== undefined;
   };
@@ -92,13 +100,42 @@ export default function CheckinScreen() {
     goToStep(currentStep + 1);
   };
 
+  // Load health data on mount to pre-fill sleep quality
+  useEffect(() => {
+    const loadHealthData = async () => {
+      if (!healthDataLoaded && isConnected && permissions.sleep && draft.sleep === undefined) {
+        try {
+          const sleepData = await getLatestSleepForCheckin();
+          if (sleepData.quality !== undefined) {
+            // Use the quality from health data if available
+            updateDraft({ sleep: sleepData.quality });
+          } else if (sleepData.duration !== undefined) {
+            // Convert duration to quality if only duration is available
+            const quality = convertDurationToQuality(sleepData.duration);
+            updateDraft({ sleep: quality });
+          }
+          setHealthDataLoaded(true);
+        } catch (error) {
+          console.log('Could not load health data for check-in:', error);
+          setHealthDataLoaded(true);
+        }
+      }
+    };
+
+    loadHealthData();
+  }, [isConnected, permissions.sleep, healthDataLoaded]);
+
   // Initialize default value for metric steps if not set
   useEffect(() => {
     const key = currentStepConfig.key as MetricKey;
-    if (!isJournalStep && !isReviewStep && draft[key] === undefined) {
+    if (!isJournalStep && !isPhotoStep && !isReviewStep && draft[key] === undefined) {
+      // Don't set default for sleep if we're still loading health data
+      if (key === 'sleep' && isConnected && permissions.sleep && !healthDataLoaded) {
+        return;
+      }
       updateDraft({ [key]: 5 }); // Set default value of 5
     }
-  }, [currentStep]);
+  }, [currentStep, healthDataLoaded]);
 
   // If already checked in today, show completion state
   // This check must be AFTER all hooks to follow React's rules of hooks
@@ -135,6 +172,16 @@ export default function CheckinScreen() {
 
     try {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+      // Save photo locally if one was selected
+      let savedPhotoUri: string | undefined;
+      if (draft.photoUri) {
+        const today = new Date().toISOString().split('T')[0];
+        const photoId = `checkin-${today}`;
+        const savedPath = await savePhotoLocally(draft.photoUri, photoId);
+        savedPhotoUri = savedPath || undefined;
+      }
+
       await createCheckin({
         mood: draft.mood!,
         stress: draft.stress!,
@@ -143,6 +190,7 @@ export default function CheckinScreen() {
         focus: draft.focus!,
         anxiety: draft.anxiety!,
         journalEntry: draft.journalEntry,
+        photoUri: savedPhotoUri,
         crisisDetected: crisisAcknowledged,
         crisisHandled: crisisAcknowledged,
       });
@@ -211,6 +259,11 @@ export default function CheckinScreen() {
           {/* Step Content */}
           {isReviewStep ? (
             <ReviewStep draft={draft} onEdit={goToStep} />
+          ) : isPhotoStep ? (
+            <PhotoStep
+              photoUri={draft.photoUri}
+              onPhotoSelected={(uri) => updateDraft({ photoUri: uri })}
+            />
           ) : isJournalStep ? (
             <JournalStep
               value={draft.journalEntry || ''}
@@ -221,6 +274,14 @@ export default function CheckinScreen() {
               metricKey={currentStepConfig.key as MetricKey}
               value={draft[currentStepConfig.key as MetricKey]}
               onChange={handleMetricChange}
+              healthDataUsed={
+                currentStepConfig.key === 'sleep' &&
+                isConnected &&
+                permissions.sleep &&
+                healthDataLoaded &&
+                draft.sleep !== undefined &&
+                draft.sleep !== 5
+              }
             />
           )}
         </ScrollView>
@@ -267,15 +328,23 @@ function MetricStep({
   metricKey,
   value,
   onChange,
+  healthDataUsed,
 }: {
   metricKey: MetricKey;
   value?: number;
   onChange: (value: number) => void;
+  healthDataUsed?: boolean;
 }) {
   const config = METRICS[metricKey];
 
   return (
     <View style={styles.metricContainer}>
+      {healthDataUsed && (
+        <View style={styles.healthDataBadge}>
+          <Ionicons name="fitness" size={16} color={colors.primary} />
+          <Text style={styles.healthDataText}>Pre-filled from Health data</Text>
+        </View>
+      )}
       <MetricSlider
         value={value ?? 5}
         onChange={onChange}
@@ -318,6 +387,90 @@ function JournalStep({
       <Text style={styles.journalHint}>
         This is optional. Your journal is private and secure.
       </Text>
+    </View>
+  );
+}
+
+// Photo Step Component
+function PhotoStep({
+  photoUri,
+  onPhotoSelected,
+}: {
+  photoUri?: string;
+  onPhotoSelected: (uri: string | undefined) => void;
+}) {
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleTakePhoto = async () => {
+    setIsLoading(true);
+    const uri = await takePhoto();
+    setIsLoading(false);
+    if (uri) {
+      onPhotoSelected(uri);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
+  };
+
+  const handlePickImage = async () => {
+    setIsLoading(true);
+    const uri = await pickImage();
+    setIsLoading(false);
+    if (uri) {
+      onPhotoSelected(uri);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
+  };
+
+  const handleRemovePhoto = () => {
+    onPhotoSelected(undefined);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
+  return (
+    <View style={styles.photoContainer}>
+      {photoUri ? (
+        <View style={styles.photoPreviewContainer}>
+          <Card style={styles.photoPreview}>
+            <Image source={{ uri: photoUri }} style={styles.photoImage} resizeMode="cover" />
+            <Pressable style={styles.removePhotoButton} onPress={handleRemovePhoto}>
+              <Ionicons name="close-circle" size={32} color={colors.error} />
+            </Pressable>
+          </Card>
+          <Text style={styles.photoHint}>
+            This photo will be added to your mood board
+          </Text>
+        </View>
+      ) : (
+        <>
+          <View style={styles.photoButtonsContainer}>
+            <Pressable
+              style={styles.photoButton}
+              onPress={handleTakePhoto}
+              disabled={isLoading}
+            >
+              <View style={[styles.photoButtonIcon, { backgroundColor: colors.primary + '15' }]}>
+                <Ionicons name="camera" size={32} color={colors.primary} />
+              </View>
+              <Text style={styles.photoButtonLabel}>Take Photo</Text>
+            </Pressable>
+
+            <Pressable
+              style={styles.photoButton}
+              onPress={handlePickImage}
+              disabled={isLoading}
+            >
+              <View style={[styles.photoButtonIcon, { backgroundColor: colors.secondary + '15' }]}>
+                <Ionicons name="images" size={32} color={colors.secondary} />
+              </View>
+              <Text style={styles.photoButtonLabel}>Choose from Gallery</Text>
+            </Pressable>
+          </View>
+
+          <Text style={styles.photoHint}>
+            Optional: Capture a moment from your day to remember this check-in
+          </Text>
+        </>
+      )}
     </View>
   );
 }
@@ -504,6 +657,23 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: spacing.xl,
   },
+  healthDataBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    backgroundColor: colors.primary + '15',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.full,
+    marginBottom: spacing.lg,
+    alignSelf: 'center',
+  },
+  healthDataText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.primary,
+    fontWeight: typography.fontWeight.medium,
+  },
   journalContainer: {
     flex: 1,
   },
@@ -527,6 +697,68 @@ const styles = StyleSheet.create({
     color: colors.textTertiary,
     textAlign: 'center',
     marginTop: spacing.md,
+  },
+  photoContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingVertical: spacing.xl,
+  },
+  photoButtonsContainer: {
+    gap: spacing.md,
+  },
+  photoButton: {
+    alignItems: 'center',
+    padding: spacing.lg,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.xl,
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderStyle: 'dashed',
+  },
+  photoButtonIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: borderRadius.full,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  photoButtonLabel: {
+    fontSize: typography.fontSize.lg,
+    fontWeight: typography.fontWeight.semibold,
+    color: colors.text,
+  },
+  photoHint: {
+    fontSize: typography.fontSize.sm,
+    color: colors.textTertiary,
+    textAlign: 'center',
+    marginTop: spacing.lg,
+    lineHeight: 20,
+  },
+  photoPreviewContainer: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  photoPreview: {
+    overflow: 'hidden',
+    padding: 0,
+    height: 400,
+    position: 'relative',
+  },
+  photoImage: {
+    width: '100%',
+    height: '100%',
+  },
+  removePhotoButton: {
+    position: 'absolute',
+    top: spacing.md,
+    right: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.full,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   reviewContainer: {
     gap: spacing.sm,

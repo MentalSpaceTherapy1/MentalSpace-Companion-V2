@@ -13,6 +13,7 @@ import {
   checkStreakMilestone,
   getStreakMessage,
 } from '../services/streakService';
+import { trackStreakMilestone } from '../services/analytics';
 
 interface StreakState {
   // State
@@ -101,16 +102,29 @@ export const useStreakStore = create<StreakState>((set, get) => ({
       // Only increment if not already checked in today
       if (currentStreak.lastCheckinDate !== today) {
         const newStreak = currentStreak.currentStreak + 1;
+        const newLongestStreak = Math.max(currentStreak.longestStreak, newStreak);
+        const isLongestStreak = newStreak > currentStreak.longestStreak;
+
         set({
           streak: {
             ...currentStreak,
             currentStreak: newStreak,
-            longestStreak: Math.max(currentStreak.longestStreak, newStreak),
+            longestStreak: newLongestStreak,
             lastCheckinDate: today,
             totalCheckins: currentStreak.totalCheckins + 1,
             isActive: true,
           },
         });
+
+        // Track streak milestones (3, 7, 14, 30, 60, 90, 180, 365 days)
+        const milestones = [3, 7, 14, 30, 60, 90, 180, 365];
+        if (milestones.includes(newStreak)) {
+          trackStreakMilestone({
+            streak_days: newStreak,
+            is_longest_streak: isLongestStreak,
+            total_checkins: currentStreak.totalCheckins + 1,
+          });
+        }
 
         // Check for milestone celebration
         await checkStreakMilestone(userId, newStreak);

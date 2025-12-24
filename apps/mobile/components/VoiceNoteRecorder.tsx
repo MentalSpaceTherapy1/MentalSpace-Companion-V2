@@ -57,7 +57,7 @@ export function VoiceNoteRecorder({
 
   const recordingRef = useRef<any>(null);
   const soundRef = useRef<any>(null);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   // Check if expo-av is available

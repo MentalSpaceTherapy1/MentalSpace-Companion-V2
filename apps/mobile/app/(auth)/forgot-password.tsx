@@ -19,7 +19,6 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Ionicons } from '@expo/vector-icons';
-import { sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '../../services/firebase';
 import { emailSchema } from '@mentalspace/shared';
 import { Button } from '../../components/ui/Button';
@@ -54,7 +53,8 @@ export default function ForgotPasswordScreen() {
     setError(null);
 
     try {
-      await sendPasswordResetEmail(auth, data.email);
+      // Using compat API for password reset
+      await auth.sendPasswordResetEmail(data.email);
       setSuccess(true);
     } catch (e: any) {
       setError(getErrorMessage(e.code));

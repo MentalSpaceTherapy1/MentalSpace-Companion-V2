@@ -1,6 +1,7 @@
 /**
  * Safety Plan Store
  * Zustand store for safety plan management with offline-first support
+ * Uses Firebase compat library
  *
  * A safety plan helps users prepare for difficult moments by documenting:
  * - Warning signs that indicate they're struggling
@@ -12,8 +13,7 @@
 
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../services/firebase';
+import { db, firebase } from '../services/firebase';
 import { useAuthStore } from './authStore';
 import { isDeviceOnline } from '../services/offlineStorage';
 
@@ -145,10 +145,14 @@ export const useSafetyPlanStore = create<SafetyPlanState>((set, get) => ({
 
       // If online, sync with Firebase
       if (isDeviceOnline()) {
-        const docRef = doc(db, 'users', userId, 'safety_plan', 'current');
-        const docSnap = await getDoc(docRef);
+        const docSnap = await db
+          .collection('users')
+          .doc(userId)
+          .collection('safety_plan')
+          .doc('current')
+          .get();
 
-        if (docSnap.exists()) {
+        if (docSnap.exists) {
           const serverPlan = docSnap.data() as SafetyPlan;
 
           // Convert Firestore timestamp if present
@@ -198,11 +202,15 @@ export const useSafetyPlanStore = create<SafetyPlanState>((set, get) => ({
 
       // If online, sync to Firebase
       if (isDeviceOnline()) {
-        const docRef = doc(db, 'users', userId, 'safety_plan', 'current');
-        await setDoc(docRef, {
-          ...planToSave,
-          updatedAt: serverTimestamp(),
-        });
+        await db
+          .collection('users')
+          .doc(userId)
+          .collection('safety_plan')
+          .doc('current')
+          .set({
+            ...planToSave,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          });
       }
 
       set({

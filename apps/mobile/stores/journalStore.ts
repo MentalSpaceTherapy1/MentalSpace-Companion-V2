@@ -1,6 +1,7 @@
 /**
  * Journal Store
  * Zustand store for journal entries with voice note support
+ * Uses Firebase compat library
  *
  * Supports:
  * - Text journal entries
@@ -11,22 +12,10 @@
 
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {
-  collection,
-  doc,
-  getDoc,
-  setDoc,
-  getDocs,
-  query,
-  where,
-  orderBy,
-  serverTimestamp,
-  deleteDoc,
-  Timestamp,
-} from 'firebase/firestore';
-import { db } from '../services/firebase';
+import { db, firebase } from '../services/firebase';
 import { useAuthStore } from './authStore';
 import { isDeviceOnline } from '../services/offlineStorage';
+import { trackJournalEntryCreated } from '../services/analytics';
 
 // Types
 export interface JournalEntry {
@@ -156,12 +145,12 @@ export const useJournalStore = create<JournalState>((set, get) => ({
 
       // If online, sync with Firebase
       if (isDeviceOnline()) {
-        const entriesRef = collection(db, 'users', userId, 'journal');
-        const q = query(
-          entriesRef,
-          orderBy('createdAt', 'desc'),
-        );
-        const snapshot = await getDocs(q);
+        const snapshot = await db
+          .collection('users')
+          .doc(userId)
+          .collection('journal')
+          .orderBy('createdAt', 'desc')
+          .get();
 
         const entries: JournalEntry[] = [];
         snapshot.forEach((doc) => {
@@ -208,11 +197,15 @@ export const useJournalStore = create<JournalState>((set, get) => ({
 
       // Fetch from Firebase if online
       if (isDeviceOnline()) {
-        const docRef = doc(db, 'users', userId, 'journal', entryId);
-        const docSnap = await getDoc(docRef);
+        const docSnap = await db
+          .collection('users')
+          .doc(userId)
+          .collection('journal')
+          .doc(entryId)
+          .get();
 
-        if (docSnap.exists()) {
-          const data = docSnap.data();
+        if (docSnap.exists) {
+          const data = docSnap.data()!;
           const entry: JournalEntry = {
             ...data,
             id: docSnap.id,
@@ -271,16 +264,28 @@ export const useJournalStore = create<JournalState>((set, get) => ({
 
       // Sync to Firebase if online
       if (isDeviceOnline()) {
-        const docRef = doc(db, 'users', userId, 'journal', newEntry.id);
-        await setDoc(docRef, {
-          ...newEntry,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
+        await db
+          .collection('users')
+          .doc(userId)
+          .collection('journal')
+          .doc(newEntry.id)
+          .set({
+            ...newEntry,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          });
       }
 
       // Clear draft
       await AsyncStorage.removeItem(`${DRAFT_KEY}_${userId}`);
+
+      // Track journal entry creation
+      trackJournalEntryCreated({
+        word_count: newEntry.wordCount,
+        has_voice_note: !!newEntry.voiceNoteUri,
+        mood_score: newEntry.moodScore,
+        tags: newEntry.tags,
+      });
 
       set({ isLoading: false, hasUnsavedChanges: false });
       return newEntry;
@@ -322,11 +327,15 @@ export const useJournalStore = create<JournalState>((set, get) => ({
 
       // Sync to Firebase if online
       if (isDeviceOnline()) {
-        const docRef = doc(db, 'users', userId, 'journal', entryId);
-        await setDoc(docRef, {
-          ...updatedEntry,
-          updatedAt: serverTimestamp(),
-        }, { merge: true });
+        await db
+          .collection('users')
+          .doc(userId)
+          .collection('journal')
+          .doc(entryId)
+          .set({
+            ...updatedEntry,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          }, { merge: true });
       }
 
       set({ isLoading: false, hasUnsavedChanges: false });
@@ -357,8 +366,12 @@ export const useJournalStore = create<JournalState>((set, get) => ({
 
       // Delete from Firebase if online
       if (isDeviceOnline()) {
-        const docRef = doc(db, 'users', userId, 'journal', entryId);
-        await deleteDoc(docRef);
+        await db
+          .collection('users')
+          .doc(userId)
+          .collection('journal')
+          .doc(entryId)
+          .delete();
       }
 
       set({ isLoading: false });

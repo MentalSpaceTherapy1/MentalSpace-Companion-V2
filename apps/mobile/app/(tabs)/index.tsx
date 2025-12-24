@@ -10,28 +10,49 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../stores/authStore';
 import { useCheckinStore } from '../../stores/checkinStore';
 import { useStreakStore, getStreakMessage } from '../../stores/streakStore';
+import { useCalendarStore } from '../../stores/calendarStore';
+import { usePlanStore } from '../../stores/planStore';
 import { colors, spacing, borderRadius, typography, shadows } from '../../constants/theme';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { MetricBadge } from '../../components/ui/MetricBadge';
+import { BusyDayCard } from '../../components/BusyDayCard';
 
 export default function HomeScreen() {
   const router = useRouter();
   const { profile } = useAuthStore();
   const { todayCheckin, isLoading, refresh } = useCheckinStore();
   const { streak, fetchStreak, refreshStreak } = useStreakStore();
+  const { isConnected, refreshEvents, checkAvailability } = useCalendarStore();
+  const { checkCalendarBusyLevel } = usePlanStore();
   const [refreshing, setRefreshing] = useState(false);
+  const [showBusyCard, setShowBusyCard] = useState(true);
 
-  // Fetch streak on mount
+  // Fetch streak and check calendar on mount
   useEffect(() => {
     fetchStreak();
-  }, [fetchStreak]);
+    checkAvailability();
+    if (isConnected) {
+      refreshEvents();
+    }
+  }, [fetchStreak, checkAvailability, isConnected]);
+
+  // Update busy level when calendar events change
+  useEffect(() => {
+    if (isConnected) {
+      checkCalendarBusyLevel();
+    }
+  }, [isConnected, checkCalendarBusyLevel]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([refresh(), refreshStreak()]);
+    const promises = [refresh(), refreshStreak()];
+    if (isConnected) {
+      promises.push(refreshEvents());
+    }
+    await Promise.all(promises);
     setRefreshing(false);
-  }, [refresh, refreshStreak]);
+  }, [refresh, refreshStreak, isConnected, refreshEvents]);
 
   const greeting = getGreeting();
   const firstName = profile?.displayName?.split(' ')[0] || 'there';
@@ -50,6 +71,9 @@ export default function HomeScreen() {
         <Text style={styles.greeting}>{greeting},</Text>
         <Text style={styles.name}>{firstName}!</Text>
       </View>
+
+      {/* Busy Day Card - Shows when calendar detects busy day */}
+      {showBusyCard && <BusyDayCard onDismiss={() => setShowBusyCard(false)} />}
 
       {/* Today's Status */}
       <Card style={styles.statusCard}>
@@ -93,6 +117,12 @@ export default function HomeScreen() {
           onPress={() => router.push('/(tabs)/checkin')}
         />
         <QuickAction
+          icon="images"
+          label="Mood Board"
+          color={colors.accent}
+          onPress={() => router.push('/(mood-board)')}
+        />
+        <QuickAction
           icon="book"
           label="Journal"
           color={colors.connection}
@@ -103,12 +133,6 @@ export default function HomeScreen() {
           label="Sleep"
           color={colors.coping}
           onPress={() => router.push('/(sleep)')}
-        />
-        <QuickAction
-          icon="heart"
-          label="Get Help"
-          color={colors.sos}
-          onPress={() => router.push('/(tabs)/sos')}
         />
       </View>
 

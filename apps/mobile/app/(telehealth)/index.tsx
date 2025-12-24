@@ -36,6 +36,7 @@ import type {
   USState,
   InsuranceProvider,
 } from '@mentalspace/shared';
+import { trackTherapistBooked } from '../../services/analytics';
 
 type Step = 'type' | 'urgency' | 'contact' | 'insurance' | 'reason' | 'review';
 
@@ -118,6 +119,11 @@ export default function TelehealthRequestScreen() {
   const handleSubmit = async () => {
     setIsSubmitting(true);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+    // Track therapist booking
+    trackTherapistBooked({
+      session_type: formData.appointmentType === 'initial_consult' ? 'initial' : 'follow_up',
+    });
 
     // Simulate API call - in production, this would save to Firestore
     await new Promise((resolve) => setTimeout(resolve, 1500));

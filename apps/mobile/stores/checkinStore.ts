@@ -1,22 +1,11 @@
 /**
  * Check-in Store
  * Zustand store for check-in state management with offline-first support
+ * Uses Firebase compat library
  */
 
 import { create } from 'zustand';
-import {
-  collection,
-  doc,
-  addDoc,
-  getDoc,
-  getDocs,
-  query,
-  where,
-  orderBy,
-  limit,
-  serverTimestamp,
-} from 'firebase/firestore';
-import { db } from '../services/firebase';
+import { db, firebase } from '../services/firebase';
 import { useAuthStore } from './authStore';
 import type { Checkin, CheckinMetrics } from '@mentalspace/shared';
 import { getTodayString, getDateDaysAgo } from '@mentalspace/shared';
@@ -28,6 +17,7 @@ import {
   isCacheStale,
 } from '../services/offlineStorage';
 import { useStreakStore } from './streakStore';
+import { trackCheckInCompleted, trackEvent } from '../services/analytics';
 
 interface CheckinState {
   // State
@@ -37,12 +27,12 @@ interface CheckinState {
   error: string | null;
 
   // Draft state for in-progress check-in
-  draft: Partial<CheckinMetrics> & { journalEntry?: string };
+  draft: Partial<CheckinMetrics> & { journalEntry?: string; photoUri?: string };
 
   // Actions
   fetchTodayCheckin: () => Promise<void>;
   fetchRecentCheckins: (days?: number) => Promise<void>;
-  createCheckin: (data: CheckinMetrics & { journalEntry?: string; crisisDetected?: boolean; crisisHandled?: boolean }) => Promise<Checkin>;
+  createCheckin: (data: CheckinMetrics & { journalEntry?: string; photoUri?: string; crisisDetected?: boolean; crisisHandled?: boolean }) => Promise<Checkin>;
   updateDraft: (updates: Partial<CheckinState['draft']>) => void;
   clearDraft: () => void;
   refresh: () => Promise<void>;
@@ -56,6 +46,7 @@ const initialDraft: CheckinState['draft'] = {
   focus: undefined,
   anxiety: undefined,
   journalEntry: '',
+  photoUri: undefined,
 };
 
 export const useCheckinStore = create<CheckinState>((set, get) => ({
@@ -86,9 +77,13 @@ export const useCheckinStore = create<CheckinState>((set, get) => ({
 
       // If online and cache is stale, fetch from server
       if (isDeviceOnline() && (await isCacheStale(userId, 'checkins', 5))) {
-        const checkinsRef = collection(db, 'users', userId, 'checkins');
-        const q = query(checkinsRef, where('date', '==', today), limit(1));
-        const snapshot = await getDocs(q);
+        const snapshot = await db
+          .collection('users')
+          .doc(userId)
+          .collection('checkins')
+          .where('date', '==', today)
+          .limit(1)
+          .get();
 
         if (!snapshot.empty) {
           const doc = snapshot.docs[0];
@@ -132,14 +127,14 @@ export const useCheckinStore = create<CheckinState>((set, get) => ({
 
       // If online and cache is stale, fetch from server
       if (isDeviceOnline() && (await isCacheStale(userId, 'checkins', 15))) {
-        const checkinsRef = collection(db, 'users', userId, 'checkins');
-        const q = query(
-          checkinsRef,
-          where('date', '>=', startDate),
-          orderBy('date', 'desc'),
-          limit(days)
-        );
-        const snapshot = await getDocs(q);
+        const snapshot = await db
+          .collection('users')
+          .doc(userId)
+          .collection('checkins')
+          .where('date', '>=', startDate)
+          .orderBy('date', 'desc')
+          .limit(days)
+          .get();
 
         const checkins = snapshot.docs.map((doc) => ({
           id: doc.id,
@@ -175,6 +170,7 @@ export const useCheckinStore = create<CheckinState>((set, get) => ({
         date: today,
         crisisDetected: data.crisisDetected ?? false,
         crisisHandled: data.crisisHandled ?? false,
+        photoUri: data.photoUri,
       };
 
       // Use offline-first create function
@@ -185,6 +181,22 @@ export const useCheckinStore = create<CheckinState>((set, get) => ({
         isLoading: false,
         draft: { ...initialDraft },
       });
+
+      // Track check-in completion in analytics
+      trackCheckInCompleted({
+        mood_score: data.mood,
+        stress_level: data.stress,
+        sleep_hours: data.sleep,
+        energy_level: data.energy,
+        crisis_detected: data.crisisDetected,
+      });
+
+      // Track crisis events if detected
+      if (data.crisisDetected) {
+        trackEvent('crisis_detected', {
+          handled: data.crisisHandled,
+        });
+      }
 
       // Update streak after successful check-in
       useStreakStore.getState().incrementStreak();

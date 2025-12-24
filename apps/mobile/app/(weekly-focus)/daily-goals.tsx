@@ -21,6 +21,7 @@ import { Card } from '../../components/ui/Card';
 import { colors, spacing, borderRadius, typography } from '../../constants/theme';
 import { WEEKLY_FOCUS_OPTIONS, WEEKLY_MICRO_GOALS } from '@mentalspace/shared';
 import type { WeeklyFocusArea } from '@mentalspace/shared';
+import { trackWeeklyFocusSet } from '../../services/analytics';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const FULL_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -70,6 +71,13 @@ export default function DailyGoalsScreen() {
 
   const handleSave = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+    // Track weekly focus set event
+    trackWeeklyFocusSet({
+      focus_area: focusArea,
+      num_goals: dailyGoals.length,
+    });
+
     Alert.alert(
       'Weekly Focus Set!',
       'Your weekly focus and daily goals have been saved. Check back each day for your micro-goal.',

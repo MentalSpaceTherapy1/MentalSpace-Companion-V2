@@ -123,7 +123,8 @@ export default function SettingsScreen() {
       // Also update user profile preferences
       await updatePreferences({
         notifications: {
-          ...profile?.preferences?.notifications,
+          dailyReminder: profile?.preferences?.notifications?.dailyReminder ?? true,
+          weeklyDigest: profile?.preferences?.notifications?.weeklyDigest ?? true,
           reminderTime: timeString,
         },
       });
@@ -360,15 +361,46 @@ export default function SettingsScreen() {
         />
       )}
 
-      {/* Focus Areas */}
-      <Text style={styles.sectionTitle}>Focus Areas</Text>
+      {/* Mood Tracking */}
+      <Text style={styles.sectionTitle}>Mood Tracking</Text>
       <Card style={styles.settingsCard}>
+        <SettingRow
+          icon="images"
+          title="Photo Mood Board"
+          subtitle="View your visual journey through check-ins"
+          iconColor={colors.accent}
+          trailing={<Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />}
+          onPress={() => router.push('/(mood-board)')}
+        />
+        <Divider />
         <SettingRow
           icon="compass"
           title="Customize Focus"
           subtitle="Choose areas to focus on"
           trailing={<Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />}
           onPress={() => {}}
+        />
+      </Card>
+
+      {/* Health Integration */}
+      <Text style={styles.sectionTitle}>Health Integration</Text>
+      <Card style={styles.settingsCard}>
+        <SettingRow
+          icon="fitness"
+          title="Health Data Sync"
+          subtitle="Connect Apple Health or Google Fit"
+          iconColor={colors.primary}
+          trailing={<Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />}
+          onPress={() => router.push('/(settings)/health-integration')}
+        />
+        <Divider />
+        <SettingRow
+          icon="calendar"
+          title="Calendar Integration"
+          subtitle="Adapt plans to your schedule"
+          iconColor={colors.secondary}
+          trailing={<Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />}
+          onPress={() => router.push('/(settings)/calendar-integration')}
         />
       </Card>
 

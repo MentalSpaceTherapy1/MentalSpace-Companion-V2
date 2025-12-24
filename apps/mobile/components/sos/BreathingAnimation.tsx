@@ -1,6 +1,6 @@
 /**
  * Breathing Animation Component
- * Animated circle for guided breathing exercises
+ * Animated circle for guided breathing exercises with accessibility support
  */
 
 import { useEffect, useRef } from 'react';
@@ -10,8 +10,11 @@ import {
   StyleSheet,
   Animated,
   Easing,
+  AccessibilityInfo,
 } from 'react-native';
 import { colors, typography } from '../../constants/theme';
+import { useAccessibilitySettings } from '../../utils/accessibility';
+import { AccessibleText } from '../AccessibleText';
 
 interface BreathingAnimationProps {
   phase: 'inhale' | 'hold' | 'exhale';
@@ -30,14 +33,39 @@ export function BreathingAnimation({
   isActive,
   pattern = { inhale: 4, hold: 4, exhale: 4 },
 }: BreathingAnimationProps) {
+  const { theme, reduceMotion } = useAccessibilitySettings();
   const scaleAnim = useRef(new Animated.Value(0.6)).current;
   const opacityAnim = useRef(new Animated.Value(0.5)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  // Announce phase changes for screen readers
+  useEffect(() => {
+    if (isActive) {
+      const message = `${getPhaseText()}, ${duration} seconds`;
+      AccessibilityInfo.announceForAccessibility(message);
+    }
+  }, [phase, isActive]);
 
   useEffect(() => {
     if (!isActive) {
       scaleAnim.setValue(0.6);
       opacityAnim.setValue(0.5);
+      return;
+    }
+
+    // Skip animations if reduce motion is enabled
+    if (reduceMotion) {
+      // Set values instantly without animation
+      switch (phase) {
+        case 'inhale':
+          scaleAnim.setValue(1);
+          opacityAnim.setValue(1);
+          break;
+        case 'exhale':
+          scaleAnim.setValue(0.6);
+          opacityAnim.setValue(0.5);
+          break;
+      }
       return;
     }
 
@@ -107,7 +135,7 @@ export function BreathingAnimation({
       animation?.stop();
       pulseAnim.setValue(1);
     };
-  }, [phase, duration, isActive]);
+  }, [phase, duration, isActive, reduceMotion]);
 
   const getPhaseText = () => {
     switch (phase) {
@@ -132,18 +160,29 @@ export function BreathingAnimation({
   };
 
   return (
-    <View style={styles.container}>
+    <View
+      style={styles.container}
+      accessible={true}
+      accessibilityRole="timer"
+      accessibilityLabel={`Breathing exercise: ${getPhaseText()}, ${duration} seconds remaining`}
+      accessibilityHint="Follow the breathing pattern shown on screen"
+    >
       {/* Outer ring */}
-      <View style={styles.outerRing}>
+      <View
+        style={[
+          styles.outerRing,
+          { borderColor: theme.colors.border },
+        ]}
+      >
         {/* Middle ring */}
         <Animated.View
           style={[
             styles.middleRing,
             {
-              transform: [
-                { scale: Animated.multiply(scaleAnim, pulseAnim) },
-              ],
-              opacity: opacityAnim,
+              transform: reduceMotion
+                ? []
+                : [{ scale: Animated.multiply(scaleAnim, pulseAnim) }],
+              opacity: reduceMotion ? 1 : opacityAnim,
               borderColor: getPhaseColor(),
             },
           ]}
@@ -153,49 +192,76 @@ export function BreathingAnimation({
             style={[
               styles.innerCircle,
               {
-                transform: [
-                  { scale: Animated.multiply(scaleAnim, pulseAnim) },
-                ],
+                transform: reduceMotion
+                  ? []
+                  : [{ scale: Animated.multiply(scaleAnim, pulseAnim) }],
                 backgroundColor: getPhaseColor() + '30',
               },
             ]}
           >
-            <Text style={[styles.phaseText, { color: getPhaseColor() }]}>
+            <AccessibleText
+              variant="heading"
+              weight="bold"
+              style={[styles.phaseText, { color: getPhaseColor() }]}
+            >
               {getPhaseText()}
-            </Text>
-            <Text style={styles.durationText}>{duration}s</Text>
+            </AccessibleText>
+            <AccessibleText variant="body" style={styles.durationText}>
+              {duration}s
+            </AccessibleText>
           </Animated.View>
         </Animated.View>
       </View>
 
       {/* Pattern indicator */}
       <View style={styles.patternContainer}>
-        <View style={styles.patternItem}>
+        <View
+          style={styles.patternItem}
+          accessible={true}
+          accessibilityLabel={`Inhale ${pattern.inhale} seconds`}
+          accessibilityState={{ selected: phase === 'inhale' }}
+        >
           <View
             style={[
               styles.patternDot,
-              phase === 'inhale' && styles.patternDotActive,
+              { backgroundColor: phase === 'inhale' ? theme.colors.primary : theme.colors.border },
             ]}
           />
-          <Text style={styles.patternText}>In {pattern.inhale}s</Text>
+          <AccessibleText variant="caption" style={styles.patternText}>
+            In {pattern.inhale}s
+          </AccessibleText>
         </View>
-        <View style={styles.patternItem}>
+        <View
+          style={styles.patternItem}
+          accessible={true}
+          accessibilityLabel={`Hold ${pattern.hold} seconds`}
+          accessibilityState={{ selected: phase === 'hold' }}
+        >
           <View
             style={[
               styles.patternDot,
-              phase === 'hold' && styles.patternDotActive,
+              { backgroundColor: phase === 'hold' ? theme.colors.primary : theme.colors.border },
             ]}
           />
-          <Text style={styles.patternText}>Hold {pattern.hold}s</Text>
+          <AccessibleText variant="caption" style={styles.patternText}>
+            Hold {pattern.hold}s
+          </AccessibleText>
         </View>
-        <View style={styles.patternItem}>
+        <View
+          style={styles.patternItem}
+          accessible={true}
+          accessibilityLabel={`Exhale ${pattern.exhale} seconds`}
+          accessibilityState={{ selected: phase === 'exhale' }}
+        >
           <View
             style={[
               styles.patternDot,
-              phase === 'exhale' && styles.patternDotActive,
+              { backgroundColor: phase === 'exhale' ? theme.colors.primary : theme.colors.border },
             ]}
           />
-          <Text style={styles.patternText}>Out {pattern.exhale}s</Text>
+          <AccessibleText variant="caption" style={styles.patternText}>
+            Out {pattern.exhale}s
+          </AccessibleText>
         </View>
       </View>
     </View>
@@ -213,7 +279,6 @@ const styles = StyleSheet.create({
     height: 250,
     borderRadius: 125,
     borderWidth: 2,
-    borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -233,12 +298,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   phaseText: {
-    fontSize: typography.fontSize.xl,
-    fontWeight: typography.fontWeight.bold,
     marginBottom: 4,
   },
   durationText: {
-    fontSize: typography.fontSize.lg,
     color: colors.textSecondary,
   },
   patternContainer: {
@@ -254,13 +316,8 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: colors.border,
-  },
-  patternDotActive: {
-    backgroundColor: colors.primary,
   },
   patternText: {
-    fontSize: typography.fontSize.sm,
     color: colors.textSecondary,
   },
 });

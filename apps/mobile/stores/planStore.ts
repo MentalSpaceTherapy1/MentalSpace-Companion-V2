@@ -6,8 +6,10 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { trackActionCompleted } from '../services/analytics';
+import { useCalendarStore } from './calendarStore';
 
-type ActionCategory = 'coping' | 'lifestyle' | 'connection';
+type ActionCategory = 'coping' | 'lifestyle' | 'connection' | 'therapist-homework';
 
 export interface PlannedAction {
   id: string;
@@ -76,6 +78,10 @@ interface PlanState {
   availableAnchors: HabitAnchor[];
   selectedAnchors: Record<string, string>; // actionId -> anchorId
 
+  // Calendar integration
+  isCalendarBusyDay: boolean;
+  calendarBusyLevel?: 'light' | 'moderate' | 'busy' | 'packed';
+
   // Actions
   setPlan: (plan: DailyPlan) => void;
   completeAction: (actionId: string) => void;
@@ -88,6 +94,10 @@ interface PlanState {
   dismissInsight: (index: number) => void;
   getSimplifiedAction: (category: ActionCategory) => PlannedAction | null;
   getSuggestedAnchor: (actionId: string) => HabitAnchor | null;
+
+  // Calendar integration
+  checkCalendarBusyLevel: () => void;
+  shouldOfferLighterPlan: () => boolean;
 }
 
 // Simplified actions for each category (shorter, easier versions)
@@ -188,6 +198,7 @@ const simplifiedActions: Record<ActionCategory, PlannedAction[]> = {
       simplified: true,
     },
   ],
+  'therapist-homework': [], // No simplified versions for therapist homework
 };
 
 // Common habit anchors
@@ -213,11 +224,14 @@ export const usePlanStore = create<PlanState>()(
         coping: { totalAssigned: 0, totalCompleted: 0, totalSkipped: 0, consecutiveSkips: 0, needsSimplification: false },
         lifestyle: { totalAssigned: 0, totalCompleted: 0, totalSkipped: 0, consecutiveSkips: 0, needsSimplification: false },
         connection: { totalAssigned: 0, totalCompleted: 0, totalSkipped: 0, consecutiveSkips: 0, needsSimplification: false },
+        'therapist-homework': { totalAssigned: 0, totalCompleted: 0, totalSkipped: 0, consecutiveSkips: 0, needsSimplification: false },
       },
       adherenceInsights: [],
       showAdherenceHint: true,
       availableAnchors: defaultAnchors,
       selectedAnchors: {},
+      isCalendarBusyDay: false,
+      calendarBusyLevel: undefined,
 
       setPlan: (plan) => {
         set({ currentPlan: plan });
@@ -280,6 +294,18 @@ export const usePlanStore = create<PlanState>()(
         };
 
         set({ categoryStats: updatedCategoryStats, actionStats: updatedActionStats });
+
+        // Track action completion in analytics (only when marking as completed)
+        if (!action.completed) {
+          trackActionCompleted({
+            action_id: action.id,
+            action_title: action.title,
+            action_category: action.category,
+            duration_minutes: action.duration,
+            is_simplified: action.simplified,
+          });
+        }
+
         get().checkAdherence();
       },
 
@@ -471,6 +497,48 @@ export const usePlanStore = create<PlanState>()(
 
         // Return first unused anchor as fallback
         return unusedAnchors[0] || null;
+      },
+
+      /**
+       * Check calendar busy level and update state
+       * Call this when generating a new plan
+       */
+      checkCalendarBusyLevel: () => {
+        // Get calendar state
+        const calendarState = useCalendarStore.getState();
+
+        if (!calendarState.isConnected) {
+          set({ isCalendarBusyDay: false, calendarBusyLevel: undefined });
+          return;
+        }
+
+        const busyLevel = calendarState.busyLevel;
+        const isBusy = busyLevel === 'busy' || busyLevel === 'packed';
+
+        set({
+          isCalendarBusyDay: isBusy,
+          calendarBusyLevel: busyLevel,
+        });
+      },
+
+      /**
+       * Determine if a lighter plan should be offered
+       * Based on calendar busy level or adherence patterns
+       */
+      shouldOfferLighterPlan: () => {
+        const { isCalendarBusyDay, categoryStats } = get();
+
+        // Offer lighter plan if calendar shows busy day
+        if (isCalendarBusyDay) {
+          return true;
+        }
+
+        // Also offer if user has been struggling with adherence
+        const hasAdherenceIssues = Object.values(categoryStats).some(
+          stats => stats.needsSimplification
+        );
+
+        return hasAdherenceIssues;
       },
     }),
     {
