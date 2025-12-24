@@ -27,10 +27,17 @@ workflows:
         script: |
           cd apps/mobile
           npx expo prebuild --platform android --clean
+      - name: Configure Gradle timeouts
+        script: |
+          cd apps/mobile/android
+          echo "" >> gradle.properties
+          echo "# Increase timeouts for Gradle downloads" >> gradle.properties
+          echo "systemProp.org.gradle.internal.http.socketTimeout=120000" >> gradle.properties
+          echo "systemProp.org.gradle.internal.http.connectionTimeout=120000" >> gradle.properties
       - name: Build Android APK
         script: |
           cd apps/mobile/android
-          ./gradlew assembleRelease
+          ./gradlew assembleRelease --no-daemon
     artifacts:
       - apps/mobile/android/app/build/outputs/**/*.apk
     publishing:
@@ -64,9 +71,16 @@ workflows:
         script: |
           cd apps/mobile
           npx expo prebuild --platform android --clean
+      - name: Configure Gradle timeouts
+        script: |
+          cd apps/mobile/android
+          echo "" >> gradle.properties
+          echo "# Increase timeouts for Gradle downloads" >> gradle.properties
+          echo "systemProp.org.gradle.internal.http.socketTimeout=120000" >> gradle.properties
+          echo "systemProp.org.gradle.internal.http.connectionTimeout=120000" >> gradle.properties
       - name: Build Android Debug APK
         script: |
           cd apps/mobile/android
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug --no-daemon
     artifacts:
       - apps/mobile/android/app/build/outputs/**/*.apk
