@@ -9,5 +9,8 @@
     "./constants": "./constants/index.ts",
     "./validation": "./validation/index.ts",
     "./utils": "./utils/index.ts"
+  },
+  "dependencies": {
+    "zod": "^3.23.8"
   }
 }
