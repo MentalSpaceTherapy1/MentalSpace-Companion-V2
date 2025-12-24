@@ -40,6 +40,10 @@ workflows:
       - name: Generate native projects
         script: |
           cd apps/mobile
+          # Ensure env var is set for Metro bundling
+          export EXPO_ROUTER_APP_ROOT=app
+          # Clear any cached builds
+          rm -rf node_modules/.cache
           npx expo prebuild --platform android --clean
       - name: Configure Gradle settings
         script: |
@@ -54,6 +58,8 @@ workflows:
           echo "org.gradle.caching=true" >> gradle.properties
       - name: Build Android APK
         script: |
+          # Set env var for babel transform to inline
+          export EXPO_ROUTER_APP_ROOT=app
           cd apps/mobile/android
           ./gradlew assembleRelease --no-daemon --stacktrace 2>&1 | tee build.log || (cat build.log && exit 1)
     artifacts:

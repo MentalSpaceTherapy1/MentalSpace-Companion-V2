@@ -75,6 +75,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.23.6",
+    "babel-plugin-transform-inline-environment-variables": "^0.4.4",
     "@testing-library/react-native": "^12.4.2",
     "@types/jest": "^30.0.0",
     "@types/react": "^18.3.27",
