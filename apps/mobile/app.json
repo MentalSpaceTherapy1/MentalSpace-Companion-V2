@@ -104,7 +104,7 @@
           }
         }
       ],
-      "expo-router",
+      ["expo-router", { "root": "app" }],
       "expo-font",
       "expo-secure-store",
       "expo-apple-authentication",
