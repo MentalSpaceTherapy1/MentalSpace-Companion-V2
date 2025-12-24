@@ -34,6 +34,11 @@ workflows:
           cd apps/mobile
           # Remove expo-dev-client to build standalone app instead of dev build
           npm uninstall expo-dev-client || true
+      - name: Copy shared package for Metro bundler
+        script: |
+          # Metro expects @mentalspace/shared at apps/mobile/shared
+          cp -r packages/shared apps/mobile/shared
+          echo "Shared package copied to apps/mobile/shared"
       - name: Set up local Android SDK
         script: |
           echo "sdk.dir=$ANDROID_SDK_ROOT" > apps/mobile/android/local.properties || true
