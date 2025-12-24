@@ -54,7 +54,11 @@ workflows:
           echo "org.gradle.caching=true" >> gradle.properties
       - name: Build Android APK
         script: |
-          cd apps/mobile/android
+          cd apps/mobile
+          # Export JS bundle first for release build
+          export EXPO_ROUTER_APP_ROOT=app
+          npx expo export --platform android --output-dir android/app/src/main/assets
+          cd android
           ./gradlew assembleRelease --no-daemon --stacktrace 2>&1 | tee build.log || (cat build.log && exit 1)
     artifacts:
       - apps/mobile/android/app/build/outputs/**/*.apk
