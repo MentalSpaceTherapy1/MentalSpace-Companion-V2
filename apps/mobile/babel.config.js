@@ -5,7 +5,7 @@ module.exports = function (api) {
     plugins: [
       // Inline environment variables at compile time for production builds
       ['transform-inline-environment-variables', {
-        include: ['EXPO_ROUTER_APP_ROOT']
+        include: ['EXPO_ROUTER_APP_ROOT', 'EXPO_ROUTER_IMPORT_MODE']
       }]
     ],
   };
