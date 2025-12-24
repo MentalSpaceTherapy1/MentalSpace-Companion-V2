@@ -29,6 +29,11 @@ workflows:
         script: |
           cd apps/mobile
           npm install
+      - name: Remove dev-client for standalone build
+        script: |
+          cd apps/mobile
+          # Remove expo-dev-client to build standalone app instead of dev build
+          npm uninstall expo-dev-client || true
       - name: Set up local Android SDK
         script: |
           echo "sdk.dir=$ANDROID_SDK_ROOT" > apps/mobile/android/local.properties || true
@@ -50,8 +55,7 @@ workflows:
       - name: Build Android APK
         script: |
           cd apps/mobile/android
-          # Use debug build until signing is configured
-          ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tee build.log || (cat build.log && exit 1)
+          ./gradlew assembleRelease --no-daemon --stacktrace 2>&1 | tee build.log || (cat build.log && exit 1)
     artifacts:
       - apps/mobile/android/app/build/outputs/**/*.apk
     publishing:
@@ -63,7 +67,7 @@ workflows:
           failure: true
 
   android-debug:
-    name: Android Debug Build
+    name: Android Debug Build (Dev Client)
     max_build_duration: 60
     instance_type: mac_mini_m2
     environment:
