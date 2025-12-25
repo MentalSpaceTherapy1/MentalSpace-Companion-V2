@@ -24,7 +24,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { loginSchema, type LoginInput } from '@mentalspace/shared';
 import { Button } from '../../components/ui/Button';
 import { colors, spacing, borderRadius, typography } from '../../constants/theme';
-import { signInWithApple, isAppleSignInAvailable } from '../../services/socialAuth';
+import { signInWithApple, isAppleSignInAvailable, signInWithGoogle } from '../../services/socialAuth';
 import * as Haptics from '../../utils/haptics';
 
 export default function LoginScreen() {
@@ -59,7 +59,8 @@ export default function LoginScreen() {
     try {
       clearError();
       await signIn(data.email, data.password);
-      // Navigation handled by auth state listener
+      // Navigate to home after successful login
+      router.replace('/(tabs)');
     } catch (e) {
       // Error handled by store
     }
@@ -97,11 +98,25 @@ export default function LoginScreen() {
       clearError();
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-      // TODO: Implement Google Sign In when OAuth is configured
-      alert('Google Sign In requires OAuth configuration. Please use email or Apple Sign In for now.');
-    } catch (error) {
+      const { isNewUser } = await signInWithGoogle();
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+      // If new user, redirect to onboarding
+      if (isNewUser) {
+        router.replace('/(onboarding)/welcome');
+      }
+      // Otherwise, auth state listener will handle navigation
+    } catch (error: any) {
       console.error('Google Sign In error:', error);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      // Don't show error if user cancelled the popup
+      if (error.code !== 'auth/popup-closed-by-user' && error.code !== 'auth/cancelled-popup-request') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        // Show user-friendly error message
+        if (error.code === 'auth/popup-blocked') {
+          alert('Popup was blocked. Please allow popups for this site and try again.');
+        }
+      }
     } finally {
       setSocialLoading(null);
     }

@@ -138,26 +138,97 @@ export async function signInWithApple(): Promise<{ isNewUser: boolean }> {
 // GOOGLE SIGN IN
 // ========================================
 
-// Google OAuth configuration
-// Note: You'll need to set up Google OAuth in Firebase Console and add your web client ID
-const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '';
-
 /**
  * Sign in with Google using Firebase Auth
- * For Expo, we use the ID token flow
+ * Uses popup flow for web, native modules for mobile
  */
 export async function signInWithGoogle(): Promise<{ isNewUser: boolean }> {
-  // For production, you'll use expo-auth-session with Google
-  // This requires proper OAuth setup in Google Cloud Console
+  // Check if we're on web platform
+  if (Platform.OS === 'web') {
+    return signInWithGoogleWeb();
+  }
 
-  // Import dynamically to avoid issues on platforms where it's not available
-  const { makeRedirectUri, useAuthRequest, ResponseType } = await import('expo-auth-session');
-  const { useEffect } = await import('react');
-
+  // For native platforms, Google Sign-In requires additional setup
+  // TODO: Implement native Google Sign-In with expo-google-sign-in or @react-native-google-signin/google-signin
   throw new Error(
-    'Google Sign In requires OAuth configuration. ' +
-    'Please set up Google OAuth in Firebase Console and configure EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID'
+    'Google Sign In on native requires additional configuration. ' +
+    'Please use email or Apple Sign In for now.'
   );
+}
+
+/**
+ * Web-specific Google Sign-In using Firebase popup
+ */
+async function signInWithGoogleWeb(): Promise<{ isNewUser: boolean }> {
+  if (!auth) {
+    throw new Error('Firebase Auth not initialized');
+  }
+
+  // Create Google Auth provider
+  const provider = new firebase.auth.GoogleAuthProvider();
+  provider.addScope('email');
+  provider.addScope('profile');
+
+  // Sign in with popup
+  const userCredential = await auth.signInWithPopup(provider);
+  const user = userCredential.user;
+
+  if (!user) {
+    throw new Error('No user returned from Google sign in');
+  }
+
+  // Check if user profile exists in Firestore
+  const profileDoc = await db.collection('users').doc(user.uid).get();
+  const isNewUser = !profileDoc.exists;
+
+  if (isNewUser) {
+    // Create new user profile
+    const newProfile: Omit<AppUser, 'id'> = {
+      email: user.email || '',
+      displayName: user.displayName || 'User',
+      photoURL: user.photoURL || undefined,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      onboardingCompleted: false,
+      carePreferencesCompleted: false,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      authProvider: 'google',
+      preferences: {
+        reasons: [],
+        focusAreas: [],
+        notifications: {
+          dailyReminder: true,
+          reminderTime: '09:00',
+          weeklyDigest: true,
+        },
+        theme: 'system',
+      },
+      carePreferences: {
+        currentMentalState: 'managing',
+        therapyStatus: 'not_in_therapy',
+        primaryGoals: [],
+        preferredSupportStyle: 'gentle_encouragement',
+        triggerTopics: [],
+        socialSupport: 'moderate',
+        sleepSchedule: {
+          typicalBedtime: '22:00',
+          typicalWakeTime: '07:00',
+          sleepQualityRating: 5,
+        },
+        exerciseFrequency: 'once_week',
+        copingStrategiesUsed: [],
+        crisisContacts: [],
+      },
+    };
+
+    await db.collection('users').doc(user.uid).set({
+      ...newProfile,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+  }
+
+  return { isNewUser };
 }
 
 /**

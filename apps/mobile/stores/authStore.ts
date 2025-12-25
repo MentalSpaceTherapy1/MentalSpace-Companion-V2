@@ -45,8 +45,13 @@ export const useAuthStore = create<AuthState>()(
 
       // Initialize auth listener
       initialize: () => {
+        // SSR guard - auth might be null on server
+        if (!auth) {
+          set({ isLoading: false, isInitialized: true });
+          return () => {};
+        }
         const unsubscribe = auth.onAuthStateChanged(async (user) => {
-          if (user) {
+          if (user && db) {
             // Fetch user profile from Firestore
             try {
               const profileDoc = await db.collection('users').doc(user.uid).get();
@@ -84,6 +89,7 @@ export const useAuthStore = create<AuthState>()(
 
       // Sign in with email/password
       signIn: async (email: string, password: string) => {
+        if (!auth || !db) throw new Error('Firebase not initialized');
         set({ isLoading: true, error: null });
 
         try {
@@ -107,6 +113,7 @@ export const useAuthStore = create<AuthState>()(
 
       // Sign up with email/password
       signUp: async (email: string, password: string, displayName: string) => {
+        if (!auth || !db) throw new Error('Firebase not initialized');
         set({ isLoading: true, error: null });
 
         try {
@@ -173,6 +180,7 @@ export const useAuthStore = create<AuthState>()(
 
       // Sign out
       signOut: async () => {
+        if (!auth) throw new Error('Firebase not initialized');
         set({ isLoading: true });
 
         try {
@@ -186,6 +194,7 @@ export const useAuthStore = create<AuthState>()(
 
       // Update user profile
       updateUserProfile: async (updates: Partial<AppUser>) => {
+        if (!db) throw new Error('Firebase not initialized');
         const { user, profile } = get();
         if (!user || !profile) throw new Error('Not authenticated');
 
@@ -206,6 +215,7 @@ export const useAuthStore = create<AuthState>()(
 
       // Update preferences
       updatePreferences: async (preferences: Partial<UserPreferences>) => {
+        if (!db) throw new Error('Firebase not initialized');
         const { user, profile } = get();
         if (!user || !profile) throw new Error('Not authenticated');
 
@@ -232,6 +242,7 @@ export const useAuthStore = create<AuthState>()(
 
       // Update care preferences
       updateCarePreferences: async (carePreferences: CarePreferences) => {
+        if (!db) throw new Error('Firebase not initialized');
         const { user, profile } = get();
         if (!user || !profile) throw new Error('Not authenticated');
 
@@ -258,6 +269,7 @@ export const useAuthStore = create<AuthState>()(
 
       // Complete onboarding
       completeOnboarding: async (preferences: UserPreferences) => {
+        if (!db) throw new Error('Firebase not initialized');
         const { user, profile } = get();
         if (!user || !profile) throw new Error('Not authenticated');
 
