@@ -190,12 +190,13 @@ const styles = StyleSheet.create({
   },
   pulseRing: {
     position: 'absolute',
-    width: '100%',
+    width: 280, // Match button minWidth instead of full container width
     height: '100%',
     borderRadius: borderRadius.xl,
     borderWidth: 2,
     borderColor: colors.secondary,
     opacity: 0.3,
+    pointerEvents: 'none', // CRITICAL: Allow clicks to pass through to elements below
     // Animation would be added here for pulse effect
   },
   expandedMenu: {
