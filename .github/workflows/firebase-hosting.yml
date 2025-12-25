@@ -1,5 +1,6 @@
 name: Deploy to Firebase Hosting
 on:
+  workflow_dispatch:  # Allow manual trigger
   push:
     branches: [main]
     paths:
