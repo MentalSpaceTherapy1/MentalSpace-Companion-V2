@@ -62,7 +62,6 @@
       },
       "package": "com.mentalspace.companion",
       "versionCode": 1,
-      "minSdkVersion": 26,
       "permissions": [
         "RECORD_AUDIO",
         "USE_BIOMETRIC",

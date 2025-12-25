@@ -10,14 +10,14 @@ import 'firebase/compat/auth';
 import 'firebase/compat/firestore';
 import 'firebase/compat/storage';
 
-// Firebase configuration from environment variables
+// Firebase configuration - hardcoded for reliable builds
 const firebaseConfig = {
-  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
+  apiKey: 'AIzaSyAVVtJ9rtP_T0qjJZhxGFGOZ0DgVXfMt8o',
+  authDomain: 'mentalspace-companion.firebaseapp.com',
+  projectId: 'mentalspace-companion',
+  storageBucket: 'mentalspace-companion.firebasestorage.app',
+  messagingSenderId: '467539507170',
+  appId: '1:467539507170:web:32b01c8fb3cd1c70852bbb',
 };
 
 // Initialize Firebase App (only once)

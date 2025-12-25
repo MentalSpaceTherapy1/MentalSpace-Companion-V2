@@ -129,36 +129,26 @@ export interface UserProperties {
 
 class AnalyticsService {
   private isAvailable: boolean = false;
-  private isInitialized: boolean = false;
-  private analytics: firebase.analytics.Analytics | null = null;
+  private isInitialized: boolean = true;
+  private analytics: any = null;
   private performanceTraces: Map<string, number> = new Map();
 
   constructor() {
-    this.initialize();
+    // Analytics disabled - using console logging only
+    // Firebase Analytics requires native SDK setup which we don't have
+    this.isAvailable = false;
+    this.isInitialized = true;
+    console.log('[Analytics] Running in console-only mode');
   }
 
   /**
-   * Initialize Firebase Analytics
-   * Only available in native builds with Firebase SDK
+   * Initialize Firebase Analytics - DISABLED
+   * Firebase Analytics requires native SDK setup
    */
   private initialize() {
-    try {
-      // Check if we're in a native environment with Firebase Analytics
-      if (Platform.OS !== 'web' && firebase.analytics) {
-        this.analytics = firebase.analytics();
-        this.isAvailable = true;
-        this.isInitialized = true;
-        console.log('[Analytics] Firebase Analytics initialized');
-      } else {
-        console.log('[Analytics] Running in development mode - events will be logged to console');
-        this.isAvailable = false;
-        this.isInitialized = true;
-      }
-    } catch (error) {
-      console.warn('[Analytics] Firebase Analytics not available:', error);
-      this.isAvailable = false;
-      this.isInitialized = true;
-    }
+    // No-op - analytics disabled
+    this.isAvailable = false;
+    this.isInitialized = true;
   }
 
   /**
