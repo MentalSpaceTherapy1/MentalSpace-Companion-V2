@@ -1,26 +1,9 @@
 /**
- * Minimal Root Layout - Test Build
+ * Absolute Minimal Layout - No wrappers
  */
 
-import { Stack } from 'expo-router';
-import { View, Text, StyleSheet } from 'react-native';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { Slot } from 'expo-router';
 
 export default function RootLayout() {
-  return (
-    <GestureHandlerRootView style={styles.container}>
-      <SafeAreaProvider>
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="index" />
-        </Stack>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
-  );
+  return <Slot />;
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-});
