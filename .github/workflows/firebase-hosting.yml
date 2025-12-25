@@ -2,12 +2,34 @@ name: Deploy to Firebase Hosting
 on:
   push:
     branches: [main]
+    paths:
+      - 'apps/mobile/**'
+      - 'packages/**'
+      - 'firebase.json'
+      - '.github/workflows/firebase-hosting.yml'
+
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: FirebaseExtended/action-hosting-deploy@v0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web app
+        run: |
+          cd apps/mobile
+          npx expo export --platform web
+
+      - name: Deploy to Firebase Hosting
+        uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: '${{ secrets.GITHUB_TOKEN }}'
           firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_MENTALSPACE_COMPANION }}'
