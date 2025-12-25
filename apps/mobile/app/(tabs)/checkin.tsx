@@ -814,7 +814,7 @@ const styles = StyleSheet.create({
     marginRight: spacing.sm,
   },
   nextButton: {
-    flex: 2,
+    flex: 1,  // Equal size with back button for balanced navigation
   },
   completeContainer: {
     flex: 1,

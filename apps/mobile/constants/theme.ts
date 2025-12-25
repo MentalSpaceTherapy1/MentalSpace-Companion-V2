@@ -51,7 +51,7 @@ export const colors = {
   // Text
   text: '#1A2B3C',
   textSecondary: '#5A6B7C',
-  textTertiary: '#8A9AAC',
+  textTertiary: '#6B7A8A',  // Darkened for WCAG AA contrast (4.5:1+)
   textInverse: '#FFFFFF',
 
   // Dark mode variants

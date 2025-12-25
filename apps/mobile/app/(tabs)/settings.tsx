@@ -267,7 +267,12 @@ export default function SettingsScreen() {
           <Text style={styles.profileName}>{profile?.displayName || 'User'}</Text>
           <Text style={styles.profileEmail}>{profile?.email}</Text>
         </View>
-        <Pressable style={styles.editButton}>
+        <Pressable
+          style={styles.editButton}
+          accessibilityLabel="Edit profile"
+          accessibilityRole="button"
+          accessibilityHint="Opens profile editing screen"
+        >
           <Ionicons name="pencil" size={20} color={colors.primary} />
         </Pressable>
       </Card>

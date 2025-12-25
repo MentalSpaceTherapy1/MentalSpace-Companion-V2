@@ -96,8 +96,11 @@ export default function HomeScreen() {
           </View>
         ) : (
           <View style={styles.emptyState}>
-            <Ionicons name="sunny-outline" size={48} color={colors.textTertiary} />
-            <Text style={styles.emptyText}>You haven't checked in today</Text>
+            <View style={styles.emptyIconContainer}>
+              <Ionicons name="heart-circle-outline" size={56} color={colors.primary} />
+            </View>
+            <Text style={styles.emptyTitle}>How are you feeling today?</Text>
+            <Text style={styles.emptySubtext}>A quick 2-minute check-in helps track your mental wellness</Text>
             <Button
               title="Start Check-in"
               onPress={() => router.push('/(tabs)/checkin')}
@@ -286,6 +289,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: spacing.lg,
   },
+  emptyIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: colors.primary + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  emptyTitle: {
+    fontSize: typography.fontSize.lg,
+    fontWeight: typography.fontWeight.semibold,
+    color: colors.text,
+    marginBottom: spacing.xs,
+    textAlign: 'center',
+  },
+  emptySubtext: {
+    fontSize: typography.fontSize.sm,
+    color: colors.textSecondary,
+    marginBottom: spacing.md,
+    textAlign: 'center',
+    paddingHorizontal: spacing.md,
+    lineHeight: 20,
+  },
   emptyText: {
     fontSize: typography.fontSize.base,
     color: colors.textSecondary,
@@ -293,7 +320,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   ctaButton: {
-    minWidth: 160,
+    minWidth: 180,
   },
   sectionTitle: {
     fontSize: typography.fontSize.lg,

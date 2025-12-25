@@ -61,3 +61,8 @@ ui-debug.log
 # Misc
 *.tsbuildinfo
 .cache/
+
+# Test artifacts
+apps/mobile/*.png
+apps/mobile/app_backup/
+apps/mobile/screens/
