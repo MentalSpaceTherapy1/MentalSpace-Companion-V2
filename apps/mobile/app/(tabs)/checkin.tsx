@@ -79,17 +79,21 @@ export default function CheckinScreen() {
     if (step < 0 || step >= STEPS.length) return;
 
     const direction = step > currentStep ? 1 : -1;
+
+    // useNativeDriver doesn't work on web for transform animations
+    const useNativeDriver = Platform.OS !== 'web';
+
     Animated.timing(slideAnim, {
       toValue: direction,
       duration: 150,
-      useNativeDriver: true,
+      useNativeDriver,
     }).start(() => {
       setCurrentStep(step);
       slideAnim.setValue(-direction);
       Animated.timing(slideAnim, {
         toValue: 0,
         duration: 150,
-        useNativeDriver: true,
+        useNativeDriver,
       }).start();
     });
   };
