@@ -44,6 +44,7 @@ export function FloatingTherapistButton({ hideOnPaths = [] }: FloatingTherapistB
     '/(onboarding)',
     '/(telehealth)',  // Already on telehealth page
     '/(sos)',  // Don't distract from SOS screen
+    '/checkin',  // Prevent overlap with Continue button during check-in
     ...hideOnPaths,
   ];
 

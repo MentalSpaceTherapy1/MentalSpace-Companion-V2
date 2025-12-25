@@ -11,6 +11,7 @@ import {
   Pressable,
   Animated,
   Easing,
+  Platform,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,9 +24,24 @@ import { colors, spacing, borderRadius, typography } from '../../constants/theme
 import { SOS_PROTOCOLS } from '@mentalspace/shared';
 import type { SOSStep, SOSProtocolType } from '@mentalspace/shared';
 
+// Helper to get protocolId from URL on web (fallback for static export)
+function getProtocolIdFromUrl(): SOSProtocolType | undefined {
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    const urlParams = new URLSearchParams(window.location.search);
+    const id = urlParams.get('protocolId');
+    if (id && SOS_PROTOCOLS.some(p => p.id === id)) {
+      return id as SOSProtocolType;
+    }
+  }
+  return undefined;
+}
+
 export default function ProtocolScreen() {
   const router = useRouter();
-  const { protocolId } = useLocalSearchParams<{ protocolId: SOSProtocolType }>();
+  const params = useLocalSearchParams<{ protocolId: SOSProtocolType }>();
+
+  // On web, try to get protocolId from URL params as fallback
+  const protocolId = params.protocolId || getProtocolIdFromUrl();
 
   const protocol = SOS_PROTOCOLS.find((p) => p.id === protocolId);
   const steps = protocol?.steps || [];
