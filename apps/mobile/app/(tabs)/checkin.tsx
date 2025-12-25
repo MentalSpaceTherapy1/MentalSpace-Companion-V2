@@ -638,6 +638,7 @@ const styles = StyleSheet.create({
   },
   stepContainer: {
     flex: 1,
+    overflow: 'hidden', // Prevent animated content from overlapping navigation buttons
   },
   scrollContent: {
     padding: spacing.lg,
@@ -812,6 +813,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderTopWidth: 1,
     borderTopColor: colors.border,
+    zIndex: 10, // Ensure navigation is above animated content
+    position: 'relative', // Required for z-index to work
   },
   backButton: {
     flex: 1,
