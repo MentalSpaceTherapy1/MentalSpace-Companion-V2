@@ -1,33 +1,12 @@
 /**
- * Test Index Screen
+ * App Entry Point
+ * Redirects to login screen
  */
 
-import { View, Text, StyleSheet } from 'react-native';
+import { useEffect } from 'react';
+import { Redirect } from 'expo-router';
 
-export default function TestScreen() {
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>MentalSpace</Text>
-      <Text style={styles.subtitle}>App is working!</Text>
-    </View>
-  );
+export default function Index() {
+  // Redirect to the login screen
+  return <Redirect href="/(auth)/login" />;
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#38B6E0',
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 10,
-  },
-  subtitle: {
-    fontSize: 18,
-    color: '#fff',
-  },
-});
