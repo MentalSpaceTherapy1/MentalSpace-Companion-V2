@@ -28,6 +28,7 @@ jobs:
         run: |
           cd apps/mobile
           npx expo export --platform web
+          node scripts/fix-module-type.js
 
       - name: Deploy to Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0
